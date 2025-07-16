@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI渲染模块 (v26.3.1 - [修复] 恢复核心模板函数)
+ * @description UI渲染模块 (v26.4.0 - [优化] 兼职接受流程反馈)
  * @author Gemini (CTO)
- * @version 26.3.1
+ * @version 26.4.0
  */
 (function() {
     'use strict';
@@ -314,6 +314,7 @@
                 return overlay;
             },
 
+            // [重构] 兼职详情弹窗的“接受”按钮逻辑
             createJobDetailsDOM(modalConfig) {
                 const { jobId } = modalConfig.payload;
                 const jobData = gameData.jobs[jobId];
@@ -351,8 +352,18 @@
                 
                 const acceptBtn = overlay.querySelector('.custom-modal-accept-btn');
                 if (acceptBtn && jobData) {
-                    acceptBtn.onclick = () => {
-                        game.Actions.executeActionBlock([{ action: { type: 'acceptJob', payload: { jobId: jobId } } }]);
+                    acceptBtn.onclick = async () => {
+                        acceptBtn.disabled = true; // 立刻禁用按钮
+                        
+                        // 直接调用动作处理器并等待结果
+                        const success = await game.Actions.actionHandlers.acceptJob({ jobId: jobId });
+
+                        if (success) {
+                            acceptBtn.textContent = '已接受'; // 成功后更新按钮文本
+                        } else {
+                            // 如果失败（例如不满足条件），恢复按钮
+                            acceptBtn.disabled = false;
+                        }
                     };
                 }
 
