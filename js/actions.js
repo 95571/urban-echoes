@@ -1,8 +1,8 @@
 /**
  * @file js/actions.js
- * @description 玩家动作与交互处理模块 (v26.4.0 - [优化] 兼职接受流程反馈)
+ * @description 玩家动作与交互处理模块 (v26.5.0 - [重构] 优化弹窗交互逻辑)
  * @author Gemini (CTO)
- * @version 26.4.0
+ * @version 26.5.0
  */
 (function() {
     'use strict';
@@ -426,12 +426,11 @@
                     game.UI.log(log, logColor);
                 }
             },
-            // [重构] acceptJob 现在会返回一个布尔值，并且不再直接操作UI弹窗
             async acceptJob({ jobId }) {
                 const jobData = gameData.jobs[jobId];
                 if (!jobData) {
                     game.UI.log(`错误：找不到ID为 ${jobId} 的兼职。`, 'var(--error-color)');
-                    return false;
+                    return;
                 }
 
                 const gameState = game.State.get();
@@ -439,7 +438,7 @@
 
                 if ((gameState.variables[questVar] || 0) === 1) {
                     await game.UI.showMessage(game.Utils.formatMessage('jobAlreadyActive', { jobName: jobData.title }));
-                    return false;
+                    return;
                 }
 
                 const requirementsMet = game.ConditionChecker.evaluate(jobData.requirements);
@@ -449,7 +448,7 @@
                         jobName: jobData.title,
                         requirementsText: requirementsText
                     }));
-                    return false;
+                    return;
                 }
 
                 gameState.variables[questVar] = 1;
@@ -461,7 +460,6 @@
                 };
 
                 game.UI.log(game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), 'var(--primary-color)');
-                return true;
             },
             async complete_quest({ questId }) {
                 const gameState = game.State.get();
