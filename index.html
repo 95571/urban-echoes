@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>都市回响 (Urban Echoes)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <header id="top-bar"></header>
+
+        <main id="main-content">
+            <div id="screen"></div>
+            <div id="message-log"></div>
+        </main>
+
+        <nav id="bottom-nav"></nav>
+    </div>
+    
+    <template id="template-core-stat-item">
+        <li>
+            <span class="stat-name"></span>
+            <span class="stat-value"></span>
+        </li>
+    </template>
+
+    <template id="template-derived-stat-item">
+        <li>
+            <span class="stat-name"></span>
+            <span class="stat-value"></span>
+        </li>
+    </template>
+    
+    <template id="template-perk-item">
+         <li title="">
+            <span class="perk-icon">✨</span>
+            <span class="perk-name"></span>
+        </li>
+    </template>
+
+    <template id="template-skill-proficiency-item">
+        <div class="skill-list-entry" data-id="">
+            <div class="skill-list-header">
+                <strong class="skill-name"></strong>
+                <span class="skill-level"></span>
+            </div>
+            <div class="proficiency-bar" title="">
+                <div class="proficiency-bar-fill" style="width: 0%"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="template-equipped-item">
+        <li>
+            <span class="item-slot-name"></span>
+            <span class="item-name"></span>
+            <div class="item-actions">
+                <button class="unequip-button">卸下</button>
+            </div>
+        </li>
+    </template>
+
+    <template id="template-inventory-item">
+         <li>
+            <span class="item-name-quantity"></span>
+            <div class="item-actions">
+                </div>
+        </li>
+    </template>
+    
+    <template id="template-party-member-item">
+        <li class="relationship-entry" data-id="">
+            <div class="party-member-avatar"></div>
+            <div class="party-member-info">
+                <strong class="member-name"></strong>
+                <small class="member-desc"></small>
+            </div>
+        </li>
+    </template>
+    
+    <template id="template-system-save-slot">
+        <li>
+            <div>
+                <strong class="save-slot-name"></strong>
+                <small class="save-slot-info" style="display:block; color:var(--text-muted-color);"></small>
+            </div>
+            <div class="item-actions">
+                </div>
+        </li>
+    </template>
+
+    <script src="data.js"></script>
+    <script src="game.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/skills.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/save_load.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/combat.js"></script>
+    <script src="js/actions.js"></script>
+</body>
+</html>
