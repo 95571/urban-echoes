@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI渲染模块 (v26.4.0 - [优化] 兼职接受流程反馈)
+ * @description UI渲染模块 (v26.6.0 - [修复] 修复接受任务时弹窗闪烁的问题)
  * @author Gemini (CTO)
- * @version 26.4.0
+ * @version 26.6.0
  */
 (function() {
     'use strict';
@@ -30,26 +30,25 @@
                     this.stack.push(modalConfig);
                     document.body.appendChild(newModalEl);
                     
-                    game.UI.render();
-
                     setTimeout(() => newModalEl.classList.add('visible'), 10);
                 });
             },
 
+            // [重构] 简化pop逻辑，移除导致闪烁的重渲染代码
             pop() {
                 if (this.stack.length === 0) return;
-                
+            
                 const modalToPop = this.stack.pop();
                 clearTimeout(UI.typewriterTimeout);
                 UI.isTyping = false;
-
+            
                 if (modalToPop.domElement) {
                     modalToPop.domElement.classList.remove('visible');
                     setTimeout(() => {
                         modalToPop.domElement.remove();
                     }, 100); 
                 }
-                
+            
                 game.UI.render();
             },
             
@@ -314,7 +313,7 @@
                 return overlay;
             },
 
-            // [重构] 兼职详情弹窗的“接受”按钮逻辑
+            // [重构] 采用“手术刀”式DOM操作，避免闪烁
             createJobDetailsDOM(modalConfig) {
                 const { jobId } = modalConfig.payload;
                 const jobData = gameData.jobs[jobId];
@@ -353,16 +352,23 @@
                 const acceptBtn = overlay.querySelector('.custom-modal-accept-btn');
                 if (acceptBtn && jobData) {
                     acceptBtn.onclick = async () => {
-                        acceptBtn.disabled = true; // 立刻禁用按钮
-                        
-                        // 直接调用动作处理器并等待结果
-                        const success = await game.Actions.actionHandlers.acceptJob({ jobId: jobId });
+                        const oldState = game.State.get().variables[jobData.questVariable] || 0;
+                        await game.Actions.actionHandlers.acceptJob({ jobId: jobId });
+                        const newState = game.State.get().variables[jobData.questVariable] || 0;
 
-                        if (success) {
-                            acceptBtn.textContent = '已接受'; // 成功后更新按钮文本
-                        } else {
-                            // 如果失败（例如不满足条件），恢复按钮
-                            acceptBtn.disabled = false;
+                        // 仅在任务状态成功从0变为1时，才执行UI操作
+                        if (oldState === 0 && newState === 1) {
+                            // "手术刀"操作：找到并移除公告板上的对应条目
+                            if (this.stack.length > 1) {
+                                const jobBoardModal = this.stack[this.stack.length - 2].domElement;
+                                if (jobBoardModal) {
+                                    const jobItemToRemove = jobBoardModal.querySelector(`.job-item[data-job-id="${jobId}"]`);
+                                    if (jobItemToRemove) {
+                                        jobItemToRemove.remove();
+                                    }
+                                }
+                            }
+                            this.pop(); // 关闭当前详情弹窗
                         }
                     };
                 }
@@ -603,7 +609,6 @@
 
         getAvatarHtml(unit) { const id = unit ? (unit.id || 'unknown') : 'unknown'; const name = unit ? (unit.name || '未知单位') : '未知单位'; const imagePath = `images/${id}.png`; return `<img src="${imagePath}" alt="${name}" class="avatar-image" onerror="this.onerror=null; this.src='${game.DEFAULT_AVATAR_FALLBACK_IMAGE}';">`; },
         
-        // [修复] 恢复被误删的核心函数
         createFromTemplate(templateId, data) {
             const template = document.getElementById(templateId);
             if (!template) {
