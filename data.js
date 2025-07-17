@@ -1,8 +1,8 @@
 /**
  * @file data.js
- * @description 游戏内容配置文件 (v27.0.0 - [新增] 高光时刻通知模块)
+ * @description 游戏内容配置文件 (v29.0.0 - [新增] 看望姥姥任务线)
  * @author Gemini (PM/CTO)
- * @version 27.0.0
+ * @version 29.0.0
  */
 window.gameData = {};
 
@@ -48,7 +48,6 @@ gameData.jobs = {
         requirements: [{ type: 'stat', stat: 'con', comparison: '>=', value: 5, text: '需要一定的体力 (体质 >= 5)' }],
         reward: "80 " + gameData.icons.gold,
         objectives: [{ id: "complete_work", text: "完成传单派发工作", target: 1, current: 0 }],
-        // [修改] 使用新的高光通知来展示任务完成
         completionActionBlock: [
             { action: { type: 'show_toast', payload: { 
                 icon: gameData.icons.quest,
@@ -92,39 +91,25 @@ gameData.jobs = {
              { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor', operation: 'set', value: 2 } } }
         ]
     },
-	"job_tutor2": {
-        id: "job_tutor2",
-        questId: "quest_job_tutor2",
-        questVariable: "q_job_tutor2",
-        title: "家庭教师",
-        description: "为一名初中生辅导数学。需要对初中数学有较好的掌握。",
-        requirements: [{ type: 'stat', stat: 'int', comparison: '>=', value: 10, text: '需要优秀的学识 (学识 >= 10)' }],
-        reward: "300 " + gameData.icons.gold,
-        objectives: [{ id: "complete_work", text: "完成家庭辅导", target: 1, current: 0 }],
+    "job_visit_grandma": {
+        id: "job_visit_grandma",
+        questId: "quest_visit_grandma",
+        questVariable: "q_visit_grandma",
+        title: "看望姥姥",
+        description: "妈妈让你带两条咸鱼回老家看望姥姥。",
+        reward: "亲情",
+        objectives: [{ id: "deliver_fish", text: "把咸鱼带给姥姥", target: 1, current: 0 }],
         completionActionBlock: [
-            { action: { type: 'show_toast', payload: { icon: gameData.icons.study, title: '任务完成', text: '你出色地完成了家庭辅导。' } } },
-            { action: { type: 'effect', payload: { gold: 300 } } },
-            { action: { type: 'log', payload: { text: `获得了 300 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
-            { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor2', operation: 'set', value: 2 } } }
-        ]
-    },
-	"job_tutor3": {
-        id: "job_tutor3",
-        questId: "quest_job_tutor3",
-        questVariable: "q_job_tutor3",
-        title: "大学教师",
-        description: "为一名大学生辅导数学。需要对初中数学有较好的掌握。",
-        requirements: [{ type: 'stat', stat: 'int', comparison: '>=', value: 12, text: '需要专业的学识 (学识 >= 12)' }],
-        reward: "500 " + gameData.icons.gold,
-        objectives: [{ id: "complete_work", text: "完成大学辅导", target: 1, current: 0 }],
-        completionActionBlock: [
-            { action: { type: 'show_toast', payload: { icon: gameData.icons.study, title: '任务完成', text: '高难度的大学辅导也难不倒你。' } } },
-            { action: { type: 'effect', payload: { gold: 500 } } },
-            { action: { type: 'log', payload: { text: `获得了 500 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
-            { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor3', operation: 'set', value: 2 } } }
+            { action: { type: 'show_toast', payload: { 
+                icon: '👵', 
+                title: '任务完成', 
+                text: '【看望姥姥】' 
+            } } },
+            { action: { type: 'modify_variable', payload: { varId: 'q_visit_grandma', operation: 'set', value: 2 } } }
         ]
     },
 };
+
 gameData.items = {
     "item_phone": { name: "智能手机", type: "accessory", slot: "accessory1", description: "现代人的必需品。", effect: { lck: 1 } },
     "item_energy_drink": { 
@@ -136,7 +121,13 @@ gameData.items = {
             { action: { type: 'effect', payload: { mp: 40, hp: -5 } } }
         ]
     },
+    "item_salted_fish": {
+        name: "咸鱼",
+        type: "quest",
+        description: "妈妈让你带给姥姥的咸鱼，闻起来很香。"
+    }
 };
+
 gameData.skillLibrary = { 
     "skill_eloquence": { name: "口才", description: "能言善辩，说服他人的能力。", baseProficiency: 50, proficiencyExponent: 1.5, baseProficiencyGain: 10, passiveEffectPerLevel: {}, perkTree: {} } 
 };
@@ -145,6 +136,7 @@ gameData.monsters = {
     "thug": { id: "thug", name: "小混混", stats: { str: 8, dex: 4, int: 2, con: 8, lck: 3 }, fleeable: true },
     "thug_leader": { id: "thug_leader", name: "混混头目", stats: { str: 12, dex: 6, int: 4, con: 10, lck: 5 }, fleeable: false } 
 };
+
 gameData.systemMessages = {
     achievementsContent: {
         title: "成就殿堂",
@@ -195,6 +187,7 @@ gameData.systemMessages = {
     jobRequirementsNotMet: "由于不满足条件，你无法接受【${jobName}】这份工作。<br><small>要求：${requirementsText}</small>",
     questCompleted: "任务完成：【${questName}】！",
 };
+
 gameData.questionSequences = {
     "character_creation": {
         startQuestionId: "q_background",
@@ -312,6 +305,7 @@ gameData.questionSequences = {
         }
     }
 };
+
 gameData.initialPlayerState = {
     id: "player", name: "无名者", gold: 0,
     hp: 100, maxHp: 100, mp: 100,  maxMp: 100,
@@ -337,6 +331,7 @@ gameData.initialPlayerState = {
     activeSequence: null,
     isCombat: false, combatState: null,
 };
+
 gameData.maps = {
     "hangcheng": {
         name: "杭城地图",
@@ -355,11 +350,6 @@ gameData.maps = {
                     { text: '进入广场 (消耗1时间段)', actionBlock: [
                         { action: { type: 'advanceTime', payload: { phases: 1 } } },
                         { action: { type: 'enter_location', payload: { locationId: 'location_downtown' } } }
-                    ]},
-                    { text: '特殊选项', actionBlock: [
-                        { action: { type: 'log', payload: { text: '你发现了一个秘密开关...' } } },
-                        { action: { type: 'set_flag', payload: { flagId: 'cheat_unlocked', value: true } } },
-                        { action: { type: 'log', payload: { text: '作弊菜单已解锁。', color: 'var(--primary-color)'} } }
                     ]},
                      { text: `[作弊] ${gameData.icons.cheat} 属性+1`, conditions: [{ type: 'flag', flagId: 'cheat_unlocked', value: true }], actionBlock: [
                         { action: { type: 'effect', payload: { stats: { str: 1, dex: 1, int: 1, con: 1, lck: 1 } } } },
@@ -410,9 +400,16 @@ gameData.maps = {
                     { text: '进去看看', actionBlock: [ { action: { type: 'enter_location', payload: { locationId: 'location_old_home' } } } ] },
                     { text: '算了', actionBlock: [] }
                 ]
-            }} }
+            }} },
+			"map_node_grandma_home": { name: "姥姥家", icon: '👵', x: 75, y: 50, interaction: { type: 'interactive_dialogue', payload: {
+                title: '姥姥家的房子',
+                options: [
+                    { text: '进去看看', actionBlock: [ { action: { type: 'enter_location', payload: { locationId: 'location_grandma_home' } } } ] },
+                    { text: '算了', actionBlock: [] }
+                ]
+            }} },
         },
-        connections: [ ["map_node_hometown_station", "map_node_old_home"] ]
+        connections: [ ["map_node_hometown_station", "map_node_old_home"], ["map_node_old_home", "map_node_grandma_home"] ]
     }
 };
 
@@ -437,7 +434,11 @@ gameData.locations = {
             { label: "妈妈", x: 60, y: 40, interaction: { type: 'interactive_dialogue', payload: {
                 title: '妈妈', 
                 imageUrl: 'images/mother.png',
-                dialogueText: '回来了啊，孩子。今天过得怎么样？\n没找到也没关系\n家里有钱，随便玩。',
+                dialogueText: [
+                    '回来了啊，孩子。今天过得怎么样？\n工作不着急找，先玩一段时间。',
+                    '找到工作了吗？没找到不用急。\n先吃饭吧。',
+                    '你妹又跑出去玩了，一放假就玩得不记得时间。\n可能在市中心逛街。'
+                ],
                 options: [
                     { text: '“还行，投了几份简历。”', actionBlock: [
                         { action: { type: 'log', payload: { text: '妈妈欣慰地点点头：“不着急，慢慢来，总能找到合适的。”' } } }
@@ -455,7 +456,22 @@ gameData.locations = {
                           ]
                       }
                     },
-                    { text: '“妈，我饿了。” (结束对话)', actionBlock: [] }
+                    { 
+                        text: '“妈，我想回趟老家。”', 
+                        conditions: [{ type: 'variable', varId: 'q_visit_grandma', comparison: '!=', value: 1 }],
+                        followUp: {
+                            dialogueText: '对，正好给你姥姥带两条咸鱼\n她唠叨好久了。',
+                            options: [
+                                { text: '“好嘞！” (获得咸鱼x2，接取任务)', 
+                                  actionBlock: [
+                                    { action: { type: 'add_item', payload: { itemId: 'item_salted_fish', quantity: 2 } } },
+                                    { action: { type: 'acceptJob', payload: { jobId: 'job_visit_grandma' } } }
+                                  ]
+                                }
+                            ]
+                        }
+                    },
+                    { text: '“妈，我饿了。”', actionBlock: [] }
                 ]
             }}},
             { 
@@ -547,8 +563,6 @@ gameData.locations = {
                                             { id: 'job_flyer' },
                                             { id: 'job_waiter' },
                                             { id: 'job_tutor' },
-											{ id: 'job_tutor2' },
-											{ id: 'job_tutor3' },
                                         ]
                                     }
                                 }
@@ -582,5 +596,65 @@ gameData.locations = {
                     { text: '算了', actionBlock: [], class: 'secondary-action' }
                 ]
             } } }
-        ] }
+        ] },
+	"location_grandma_home": { name: "姥姥家的房子", description: "姥姥就住在老家隔壁，你小时候经常在这里玩。", imageUrl: "images/location_grandma_home.png", hotspots: [
+            { label: "返回地图", x: 60, y: 60, 
+				interaction: { 
+					type: 'interactive_dialogue', 
+					payload: {
+						title: '返回地图',
+						options: [
+							{ text: '确认', actionBlock: [{ action: { type: 'showMap' } }] },
+							{ text: '算了', actionBlock: [], class: 'secondary-action' }
+						]
+            } } },
+			
+			{ label: "姥姥", x: 60, y: 40, interaction: { type: 'interactive_dialogue', payload: {
+                title: '姥姥', 
+                imageUrl: 'images/grandma.png',
+                dialogueText: [
+                    '哎呦，外孙来啦！快让姥姥看看！',
+                    '乖孙想吃什么？\n姥姥给你做。'
+                ],
+                options: [
+                    { text: '“姥姥身体健康。”', 
+						actionBlock: [],
+                        followUp: {
+                          dialogueText: '姥姥笑得很灿烂：“乖孙，来，给你零花钱。”',
+                          options: [
+                              { text: '“谢谢姥姥。”', actionBlock: [ 
+                                  { action: { type: 'log', payload: { text: '姥姥往你手里塞了200块。' } } },
+								  { action: { type: 'log', payload: { text: '你获得了<strong><span style="color:var(--error-color)">200</span></strong>元' } } },
+                                  { action: { type: 'effect', payload: { gold: 200 } } },
+                                ] 
+                              }
+                          ]
+                      }
+                    },
+                    { text: '“姥姥，这是我妈让我给您带的咸鱼。”',
+					  conditions: [
+                                    { type: 'variable', varId: 'q_visit_grandma', comparison: '==', value: 1 }
+                                ],
+                      actionBlock: [
+								  { action: { type: 'remove_item', payload: { itemId: 'item_salted_fish', quantity: 2 } } },
+								  { action: { type: 'complete_quest', payload: { questId: 'quest_visit_grandma' } } },
+                                ],
+					  followUp: {
+						  dialogueText: '姥姥接过咸鱼：“有心了。”',
+						  options: [
+                              { text: '“嘿嘿。”', 
+							    actionBlock: [ 
+                                ] 
+                              }
+                          ]
+                      }
+                    },
+                    
+                ]
+            }}},
+			
+        ] },
 };
+
+
+
