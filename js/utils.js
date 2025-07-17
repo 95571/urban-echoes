@@ -1,11 +1,11 @@
 /**
  * @file js/utils.js
- * @description 通用工具与条件检查器模块 (v26.0.0 - [重构] 变量驱动任务系统)
+ * @description 通用工具与条件检查器模块 (v30.0.0 - [引擎] 新增has_item条件；修复stat条件)
  * @author Gemini (CTO)
- * @version 26.0.0
+ * @version 30.0.0
  */
 (function() {
-    'use strict';
+    'usestrict';
     const game = window.game;
     const gameData = window.gameData;
 
@@ -34,9 +34,19 @@
             flag(condition) {
                 return game.State.get().flags[condition.flagId] === condition.value;
             },
+            // [修复] 现在可以正确检查 'gold', 'hp', 'mp' 等顶级属性
             stat(condition) {
-                const effectiveStats = game.State.get().effectiveStats || game.State.get().stats;
-                const statValue = effectiveStats[condition.stat] || 0;
+                const state = game.State.get();
+                const effectiveStats = state.effectiveStats || state.stats;
+                let statValue;
+
+                if (condition.stat in effectiveStats) {
+                    statValue = effectiveStats[condition.stat];
+                } else if (condition.stat in state) {
+                    statValue = state[condition.stat];
+                } else {
+                    statValue = 0;
+                }
                 
                 switch (condition.comparison) {
                     case '>':  return statValue > condition.value;
@@ -48,7 +58,6 @@
                     default: return false;
                 }
             },
-            // [新增] 检查变量的值
             variable(condition) {
                 const varValue = game.State.get().variables[condition.varId] || 0;
                  switch (condition.comparison) {
@@ -60,6 +69,18 @@
                     case '!=': return varValue != condition.value;
                     default: return false;
                 }
+            },
+            // [新增] 检查玩家是否持有特定物品
+            has_item(condition) {
+                const inventory = game.State.get().inventory;
+                const requiredQuantity = condition.quantity || 1;
+                let currentQuantity = 0;
+                for (const item of inventory) {
+                    if (item.id === condition.itemId) {
+                        currentQuantity += item.quantity;
+                    }
+                }
+                return currentQuantity >= requiredQuantity;
             }
         }
     };
