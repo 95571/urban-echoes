@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI渲染模块 (v26.6.0 - [修复] 修复接受任务时弹窗闪烁的问题)
+ * @description UI渲染模块 (v27.0.0 - [新增] 高光时刻通知模块)
  * @author Gemini (CTO)
- * @version 26.6.0
+ * @version 27.0.0
  */
 (function() {
     'use strict';
@@ -34,7 +34,6 @@
                 });
             },
 
-            // [重构] 简化pop逻辑，移除导致闪烁的重渲染代码
             pop() {
                 if (this.stack.length === 0) return;
             
@@ -313,7 +312,6 @@
                 return overlay;
             },
 
-            // [重构] 采用“手术刀”式DOM操作，避免闪烁
             createJobDetailsDOM(modalConfig) {
                 const { jobId } = modalConfig.payload;
                 const jobData = gameData.jobs[jobId];
@@ -356,9 +354,7 @@
                         await game.Actions.actionHandlers.acceptJob({ jobId: jobId });
                         const newState = game.State.get().variables[jobData.questVariable] || 0;
 
-                        // 仅在任务状态成功从0变为1时，才执行UI操作
                         if (oldState === 0 && newState === 1) {
-                            // "手术刀"操作：找到并移除公告板上的对应条目
                             if (this.stack.length > 1) {
                                 const jobBoardModal = this.stack[this.stack.length - 2].domElement;
                                 if (jobBoardModal) {
@@ -368,7 +364,7 @@
                                     }
                                 }
                             }
-                            this.pop(); // 关闭当前详情弹窗
+                            this.pop();
                         }
                     };
                 }
@@ -445,7 +441,10 @@
 
         init() {
             const dom = game.dom;
-            const ids = [ "top-bar", "main-content", "message-log", "screen", "bottom-nav", ];
+            const ids = [
+                "top-bar", "main-content", "message-log", "screen", "bottom-nav",
+                "toast-container" // [新增] 缓存toast容器
+            ];
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) dom[id] = el;
@@ -524,6 +523,30 @@
             dom['message-log'].appendChild(p);
             dom['message-log'].scrollTop = dom['message-log'].scrollHeight;
             if (dom['message-log'].children.length > 100) dom['message-log'].removeChild(dom['message-log'].firstChild);
+        },
+
+        // [新增] 显示高光通知的函数
+        showToast({ title, text, icon }) {
+            const container = game.dom['toast-container'];
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = 'toast-notification';
+            toast.innerHTML = `
+                <div class="toast-icon">${icon || '⭐'}</div>
+                <div class="toast-content">
+                    <strong class="toast-title">${title || ''}</strong>
+                    <span class="toast-text">${text || ''}</span>
+                </div>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                toast.addEventListener('animationend', () => {
+                    toast.remove();
+                });
+            }, 3000); // 3秒后自动消失
         },
 
         renderTopBar() {
