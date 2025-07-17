@@ -1,8 +1,8 @@
 /**
  * @file data.js
- * @description 游戏内容配置文件 (v26.0.0 - [重构] 变量驱动任务系统)
+ * @description 游戏内容配置文件 (v27.0.0 - [新增] 高光时刻通知模块)
  * @author Gemini (PM/CTO)
- * @version 26.0.0
+ * @version 27.0.0
  */
 window.gameData = {};
 
@@ -42,16 +42,21 @@ gameData.jobs = {
     "job_flyer": {
         id: "job_flyer",
         questId: "quest_job_flyer",
-        questVariable: "q_job_flyer", // [新增] 任务状态变量
+        questVariable: "q_job_flyer", 
         title: "派发传单",
         description: "在市中心广场派发健身房的宣传传单。简单劳动，但有点枯燥。",
         requirements: [{ type: 'stat', stat: 'con', comparison: '>=', value: 5, text: '需要一定的体力 (体质 >= 5)' }],
         reward: "80 " + gameData.icons.gold,
         objectives: [{ id: "complete_work", text: "完成传单派发工作", target: 1, current: 0 }],
+        // [修改] 使用新的高光通知来展示任务完成
         completionActionBlock: [
+            { action: { type: 'show_toast', payload: { 
+                icon: gameData.icons.quest,
+                title: '任务完成', 
+                text: '你完成了【派发传单】的工作。' 
+            } } },
             { action: { type: 'effect', payload: { gold: 80 } } },
-            { action: { type: 'log', payload: { text: '你完成了派发传单的工作，获得了 80 金钱。', color: 'var(--success-color)' } } },
-            // [修改] 完成后将任务变量设回0，允许再次接取
+            { action: { type: 'log', payload: { text: `获得了 80 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
             { action: { type: 'modify_variable', payload: { varId: 'q_job_flyer', operation: 'set', value: 0 } } }
         ]
     },
@@ -65,8 +70,9 @@ gameData.jobs = {
         reward: "120 " + gameData.icons.gold,
         objectives: [{ id: "complete_work", text: "完成餐厅服务工作", target: 1, current: 0 }],
         completionActionBlock: [
+            { action: { type: 'show_toast', payload: { icon: '🧑‍🍳', title: '工作结束', text: '餐厅的辛勤劳动有了回报。' } } },
             { action: { type: 'effect', payload: { gold: 120 } } },
-            { action: { type: 'log', payload: { text: '你在餐厅的辛勤劳动有了回报，获得了 120 金钱。', color: 'var(--success-color)' } } },
+            { action: { type: 'log', payload: { text: `获得了 120 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
             { action: { type: 'modify_variable', payload: { varId: 'q_job_waiter', operation: 'set', value: 0 } } }
         ]
     },
@@ -80,13 +86,12 @@ gameData.jobs = {
         reward: "200 " + gameData.icons.gold,
         objectives: [{ id: "complete_work", text: "完成家教辅导", target: 1, current: 0 }],
         completionActionBlock: [
+             { action: { type: 'show_toast', payload: { icon: gameData.icons.study, title: '任务完成', text: '家教工作顺利结束！' } } },
              { action: { type: 'effect', payload: { gold: 200 } } },
-             { action: { type: 'log', payload: { text: '家教工作顺利完成，你获得了 200 金钱。', color: 'var(--success-color)' } } },
-             // [修改] 主线/一次性任务，完成后将任务变量设为2
+             { action: { type: 'log', payload: { text: `获得了 200 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
              { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor', operation: 'set', value: 2 } } }
         ]
     },
-    // ... 其他 jobs 类似修改 ...
 	"job_tutor2": {
         id: "job_tutor2",
         questId: "quest_job_tutor2",
@@ -97,8 +102,9 @@ gameData.jobs = {
         reward: "300 " + gameData.icons.gold,
         objectives: [{ id: "complete_work", text: "完成家庭辅导", target: 1, current: 0 }],
         completionActionBlock: [
+            { action: { type: 'show_toast', payload: { icon: gameData.icons.study, title: '任务完成', text: '你出色地完成了家庭辅导。' } } },
             { action: { type: 'effect', payload: { gold: 300 } } },
-            { action: { type: 'log', payload: { text: '你出色地完成了家庭辅导，获得了 300 金钱。', color: 'var(--success-color)' } } },
+            { action: { type: 'log', payload: { text: `获得了 300 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
             { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor2', operation: 'set', value: 2 } } }
         ]
     },
@@ -112,13 +118,13 @@ gameData.jobs = {
         reward: "500 " + gameData.icons.gold,
         objectives: [{ id: "complete_work", text: "完成大学辅导", target: 1, current: 0 }],
         completionActionBlock: [
+            { action: { type: 'show_toast', payload: { icon: gameData.icons.study, title: '任务完成', text: '高难度的大学辅导也难不倒你。' } } },
             { action: { type: 'effect', payload: { gold: 500 } } },
-            { action: { type: 'log', payload: { text: '高难度的大学辅导也难不倒你，你获得了 500 金钱。', color: 'var(--success-color)' } } },
+            { action: { type: 'log', payload: { text: `获得了 500 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
             { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor3', operation: 'set', value: 2 } } }
         ]
     },
 };
-// ... (省略未改变部分: items, skillLibrary, perkLibrary, monsters) ...
 gameData.items = {
     "item_phone": { name: "智能手机", type: "accessory", slot: "accessory1", description: "现代人的必需品。", effect: { lck: 1 } },
     "item_energy_drink": { 
@@ -189,7 +195,6 @@ gameData.systemMessages = {
     jobRequirementsNotMet: "由于不满足条件，你无法接受【${jobName}】这份工作。<br><small>要求：${requirementsText}</small>",
     questCompleted: "任务完成：【${questName}】！",
 };
-// ... (省略未改变部分: questionSequences, initialPlayerState, maps) ...
 gameData.questionSequences = {
     "character_creation": {
         startQuestionId: "q_background",
@@ -347,7 +352,7 @@ gameData.maps = {
                 title: '市中心广场',
                 textAlign: 'center',
                 options: [
-                    { text: '进入广场 (消耗1时间)', actionBlock: [
+                    { text: '进入广场 (消耗1时间段)', actionBlock: [
                         { action: { type: 'advanceTime', payload: { phases: 1 } } },
                         { action: { type: 'enter_location', payload: { locationId: 'location_downtown' } } }
                     ]},
@@ -368,7 +373,7 @@ gameData.maps = {
                 interaction: { type: 'interactive_dialogue', payload: {
                     title: '售票员：你要去哪里？',
                     options: [
-                        { text: `回老家 (消耗${gameData.settings.travelTime.bus_long_distance}时间)`, actionBlock: [
+                        { text: `回老家 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [
                             { action: { type: 'log', payload: { text: '你坐上了长途汽车...' } } },
                             { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } },
                             { action: { type: 'map_transition', payload: { targetMapId: "hometown", targetStartNode: "map_node_hometown_station" } } },
@@ -389,7 +394,7 @@ gameData.maps = {
                 interaction: { type: 'interactive_dialogue', payload: {
                     title: '准备回杭城吗？',
                     options: [
-                         { text: `返回杭城 (消耗${gameData.settings.travelTime.bus_long_distance}时间)`, actionBlock: [
+                         { text: `返回杭城 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [
                             { action: { type: 'log', payload: { text: '你坐上了返回杭城的汽车...' } } },
                             { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } },
                             { action: { type: 'map_transition', payload: { targetMapId: "hangcheng", targetStartNode: "map_node_bus_station" } } },
@@ -413,7 +418,6 @@ gameData.maps = {
 
 gameData.locations = {
     "start_creation": { name: "命运的十字路口", description: "回忆如潮水般涌来...", imageUrl: null, hotspots: [] },
-    // ... (location_home, location_community 不变) ...
     "location_home": { name: "你的房间", description: "一个温馨的小房间，是你休憩的港湾。", imageUrl: "images/location_home.png", hotspots: [
             { label: "出门", x: 80, y: 80, interaction: { type: 'interactive_dialogue', payload: { 
                 title: '出门',
@@ -551,7 +555,6 @@ gameData.locations = {
                             },
                             {
                                 text: '汇报传单派发工作',
-                                // [修改] 使用新的变量检查器
                                 conditions: [{ type: 'variable', varId: 'q_job_flyer', comparison: '==', value: 1 }],
                                 actionBlock: [
                                     { action: { type: 'complete_quest', payload: { questId: 'quest_job_flyer' } } }
@@ -571,7 +574,6 @@ gameData.locations = {
             }
         ] 
     },
-    // ... (location_old_home 不变)
     "location_old_home": { name: "老家的房子", description: "充满回忆的旧屋，院子里有棵大槐树。", imageUrl: "images/location_old_home.png", hotspots: [
             { label: "返回地图", x: 50, y: 50, interaction: { type: 'interactive_dialogue', payload: {
                 title: '返回地图',
