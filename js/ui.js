@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI渲染模块 (v27.0.0 - [新增] 高光时刻通知模块)
+ * @description UI渲染模块 (v28.1.0 - [修复] 修复打字机跳过逻辑)
  * @author Gemini (CTO)
- * @version 27.0.0
+ * @version 28.1.0
  */
 (function() {
     'use strict';
@@ -181,6 +181,10 @@
                         }
                         
                         if (originalOption.followUp) {
+                            const followUpText = originalOption.followUp.dialogueText;
+                            if (Array.isArray(followUpText)) {
+                                originalOption.followUp.dialogueText = followUpText[Math.floor(Math.random() * followUpText.length)];
+                            }
                             updateModalContent({ ...currentDialogueData, ...originalOption.followUp });
                         } else if (originalOption.subDialogue) {
                             const sub = originalOption.subDialogue;
@@ -194,7 +198,12 @@
                         }
                     };
                     
-                    const fullText = currentDialogueData.dialogueText || currentDialogueData.text || currentDialogueData.title || '';
+                    let textSource = currentDialogueData.dialogueText || currentDialogueData.text || currentDialogueData.title || '';
+                    if (Array.isArray(textSource)) {
+                        textSource = textSource[Math.floor(Math.random() * textSource.length)];
+                    }
+                    
+                    const fullText = textSource;
                     const textSegments = fullText.split('<br>').join('\n').split('\n').filter(s => s.trim() !== '');
                     let currentSegmentIndex = 0;
                     
@@ -202,54 +211,56 @@
                     textEl.style.textAlign = currentDialogueData.textAlign || defaultAlignment;
                     let shouldUseTypewriter = isRichMode;
                     if (currentDialogueData.useTypewriter !== undefined) shouldUseTypewriter = currentDialogueData.useTypewriter;
+                    
+                    const showButtons = () => {
+                        textContainer.onclick = null;
+                        overlay.onclick = null;
+                        continueIndicator.classList.add('hidden');
+                        if (availableOptions.length > 0) {
+                            buttonsDiv.innerHTML = availableOptions.map(opt => `<button data-value='${JSON.stringify(opt.value)}' class="${opt.originalOption.class || ''}" style="text-align: ${opt.originalOption.textAlign || 'left'}">${opt.text}</button>`).join('');
+                            buttonsDiv.querySelectorAll('button').forEach(btn => {
+                                btn.onclick = (e) => {
+                                    e.stopPropagation();
+                                    handleChoice(JSON.parse(btn.dataset.value));
+                                };
+                            });
+                        } else {
+                            this.resolveCurrent({ value: true });
+                        }
+                    };
 
+                    const onSegmentComplete = () => {
+                        if (currentSegmentIndex < textSegments.length) {
+                             continueIndicator.classList.remove('hidden');
+                        } else {
+                            showButtons();
+                        }
+                    };
+                    
                     const showNextSegment = () => {
+                        // [修改] 核心打字机跳过逻辑
                         if (UI.isTyping) {
                             clearTimeout(UI.typewriterTimeout);
                             UI.isTyping = false;
-                            textEl.innerHTML = textSegments[currentSegmentIndex - 1]; 
-                            if (currentSegmentIndex < textSegments.length) {
-                                continueIndicator.classList.remove('hidden');
-                            } else {
-                                showNextSegment();
-                            }
+                            const segmentBeingTyped = textSegments[currentSegmentIndex - 1];
+                            textEl.innerHTML = segmentBeingTyped;
+                            onSegmentComplete();
                             return;
                         }
 
                         if (currentSegmentIndex >= textSegments.length) {
-                            textContainer.onclick = null;
-                            overlay.onclick = null;
-                            continueIndicator.classList.add('hidden');
-                            if (availableOptions.length > 0) {
-                                buttonsDiv.innerHTML = availableOptions.map(opt => `<button data-value='${JSON.stringify(opt.value)}' class="${opt.originalOption.class || ''}" style="text-align: ${opt.originalOption.textAlign || 'left'}">${opt.text}</button>`).join('');
-                                buttonsDiv.querySelectorAll('button').forEach(btn => {
-                                    btn.onclick = (e) => {
-                                        e.stopPropagation();
-                                        handleChoice(JSON.parse(btn.dataset.value));
-                                    };
-                                });
-                            } else {
-                                this.resolveCurrent({ value: true });
-                            }
+                            showButtons();
                             return;
                         }
 
                         continueIndicator.classList.add('hidden');
-                        const segment = textSegments[currentSegmentIndex];
+                        const segmentToShow = textSegments[currentSegmentIndex];
                         currentSegmentIndex++;
-
-                        const onSegmentComplete = () => {
-                             if (currentSegmentIndex < textSegments.length || (availableOptions.length === 0 && textSegments.length > 0)) {
-                                continueIndicator.classList.remove('hidden');
-                            } else {
-                                showNextSegment();
-                            }
-                        };
                         
-                        if (shouldUseTypewriter) UI.typewriter(textEl, segment, onSegmentComplete);
-                        else {
-                            textEl.innerHTML = textSegments.join('<br>');
-                            currentSegmentIndex = textSegments.length;
+                        if (shouldUseTypewriter) {
+                            UI.typewriter(textEl, segmentToShow, onSegmentComplete);
+                        } else {
+                            textEl.innerHTML = segmentToShow;
                             onSegmentComplete();
                         }
                     };
@@ -259,7 +270,7 @@
                         overlay.onclick = (e) => { if (e.target === overlay) showNextSegment(); };
                         showNextSegment();
                     } else {
-                        showNextSegment();
+                        showButtons();
                     }
                 };
 
@@ -443,7 +454,7 @@
             const dom = game.dom;
             const ids = [
                 "top-bar", "main-content", "message-log", "screen", "bottom-nav",
-                "toast-container" // [新增] 缓存toast容器
+                "toast-container" 
             ];
             ids.forEach(id => {
                 const el = document.getElementById(id);
@@ -525,7 +536,6 @@
             if (dom['message-log'].children.length > 100) dom['message-log'].removeChild(dom['message-log'].firstChild);
         },
 
-        // [新增] 显示高光通知的函数
         showToast({ title, text, icon }) {
             const container = game.dom['toast-container'];
             if (!container) return;
@@ -546,7 +556,7 @@
                 toast.addEventListener('animationend', () => {
                     toast.remove();
                 });
-            }, 3000); // 3秒后自动消失
+            }, 3000); 
         },
 
         renderTopBar() {
