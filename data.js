@@ -1,8 +1,8 @@
 /**
  * @file data.js
- * @description 游戏内容配置文件 (v29.0.0 - [新增] 看望姥姥任务线)
+ * @description 游戏内容配置文件 (v32.1.0 - [修复] 优化物品获取日志及地图交互)
  * @author Gemini (PM/CTO)
- * @version 29.0.0
+ * @version 32.1.0
  */
 window.gameData = {};
 
@@ -12,6 +12,7 @@ gameData.icons = {
     attack:'⚔️', defense:'🛡️', spd: '🏃',
     location: '📍', unknown: '❓', quest: '📜', time: '🕒',
     home: '🏠', work: '🏢', study: '📚', shop: '🛍️', park: '🌳', bus: '🚌',
+    market: '🛒',
     cheat: '🛠️',
     save: '💾', load: '📂', export: '📤', import: '📥'
 };
@@ -55,7 +56,6 @@ gameData.jobs = {
                 text: '你完成了【派发传单】的工作。' 
             } } },
             { action: { type: 'effect', payload: { gold: 80 } } },
-            { action: { type: 'log', payload: { text: `获得了 80 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
             { action: { type: 'modify_variable', payload: { varId: 'q_job_flyer', operation: 'set', value: 0 } } }
         ]
     },
@@ -71,7 +71,6 @@ gameData.jobs = {
         completionActionBlock: [
             { action: { type: 'show_toast', payload: { icon: '🧑‍🍳', title: '工作结束', text: '餐厅的辛勤劳动有了回报。' } } },
             { action: { type: 'effect', payload: { gold: 120 } } },
-            { action: { type: 'log', payload: { text: `获得了 120 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
             { action: { type: 'modify_variable', payload: { varId: 'q_job_waiter', operation: 'set', value: 0 } } }
         ]
     },
@@ -87,7 +86,6 @@ gameData.jobs = {
         completionActionBlock: [
              { action: { type: 'show_toast', payload: { icon: gameData.icons.study, title: '任务完成', text: '家教工作顺利结束！' } } },
              { action: { type: 'effect', payload: { gold: 200 } } },
-             { action: { type: 'log', payload: { text: `获得了 200 ${gameData.icons.gold}。`, color: 'var(--success-color)' } } },
              { action: { type: 'modify_variable', payload: { varId: 'q_job_tutor', operation: 'set', value: 2 } } }
         ]
     },
@@ -108,23 +106,53 @@ gameData.jobs = {
             { action: { type: 'modify_variable', payload: { varId: 'q_visit_grandma', operation: 'set', value: 2 } } }
         ]
     },
+    "job_buy_ribs": {
+        id: "job_buy_ribs",
+        questId: "quest_buy_ribs",
+        questVariable: "q_buy_ribs",
+        title: "给姥姥买排骨",
+        description: "姥姥想吃排骨了，让你去菜市场买2斤回来。",
+        reward: "姥姥的红烧排骨",
+        objectives: [{ id: "buy_ribs", text: "购买2斤排骨", target: 2, current: 0 }],
+        completionActionBlock: [
+            { action: { type: 'show_toast', payload: { 
+                icon: '🍖', 
+                title: '任务完成', 
+                text: '【给姥姥买排骨】' 
+            } } },
+            { action: { type: 'log', payload: { text: '姥姥高兴地接过了排骨，走进了厨房。不一会儿，香喷喷的红烧排骨就出锅了！' } } },
+            { action: { type: 'effect', payload: { hp: 50, mp: 50 } } },
+            { action: { type: 'log', payload: { text: '你吃得心满意足，感觉浑身充满了力量。' , color: 'var(--success-color)'} } },
+            { action: { type: 'modify_variable', payload: { varId: 'q_buy_ribs', operation: 'set', value: 2 } } }
+        ]
+    }
 };
 
 gameData.items = {
-    "item_phone": { name: "智能手机", type: "accessory", slot: "accessory1", description: "现代人的必需品。", effect: { lck: 1 } },
+    "item_phone": { 
+        name: "智能手机", type: "accessory", slot: "accessory1", 
+        description: "现代人的必需品。", 
+        droppable: false,
+        effect: { lck: 1 } 
+    },
     "item_energy_drink": { 
-        name: "功能饮料", 
-        type: "consumable", 
+        name: "功能饮料", type: "consumable", 
         description: "一罐能让你瞬间精神抖擞的神奇液体，但似乎对健康没什么好处。", 
+        droppable: true,
         onUseActionBlock: [
             { action: { type: 'log', payload: { text: '你喝下功能饮料，感觉精力充沛，但心脏有些不舒服。', color: 'var(--primary-color)' } } },
             { action: { type: 'effect', payload: { mp: 40, hp: -5 } } }
         ]
     },
     "item_salted_fish": {
-        name: "咸鱼",
-        type: "quest",
-        description: "妈妈让你带给姥姥的咸鱼，闻起来很香。"
+        name: "咸鱼", type: "material", 
+        description: "妈妈让你带给姥姥的咸鱼，闻起来很香。",
+        droppable: true,
+    },
+    "item_ribs": {
+        name: "新鲜的排骨", type: "material", 
+        description: "从菜市场买来的新鲜排骨，很重。",
+        droppable: true,
     }
 };
 
@@ -178,7 +206,7 @@ gameData.systemMessages = {
     fleeFail: "你试图逃跑，但是失败了！",
     extraTurnSuccess: "⚡ ${name} 的速度惊人，获得了额外行动机会！",
     getLoot: "你获得了 ${gold} ${goldIcon}。",
-    getItemLoot: "战利品：获得了 [${itemName}] x${quantity}。",
+    getItemLoot: "获得了 [${itemName}] x${quantity}。", // [修改]
     equipItem: "装备了 [${itemName}]。",
     unequipItem: "卸下了 [${itemName}]。",
     fullHeal: "你好好休息了一下，健康和精力都完全恢复了！",
@@ -408,8 +436,33 @@ gameData.maps = {
                     { text: '算了', actionBlock: [] }
                 ]
             }} },
+            "map_node_market": { name: "菜市场", icon: gameData.icons.market, x: 45, y: 50, 
+                interaction: { type: 'interactive_dialogue', payload: {
+                    title: '老家菜市场',
+                    options: [
+                        { 
+                            text: '进去逛逛', 
+                            conditions: [{ type: 'time', allowedPhases: [0, 1, 2, 3] }],
+                            actionBlock: [ { action: { type: 'enter_location', payload: { locationId: 'location_market' } } } ] 
+                        },
+                        {
+                            text: '菜市场已关门 (营业时间 06:00 - 18:00)',
+                            conditions: [{ type: 'time', allowedPhases: [4, 5] }],
+                            followUp: {
+                                dialogueText: "菜市场已经打烊了，明天再来吧。",
+                                options: [{text: "好吧"}]
+                            }
+                        },
+                        { text: '算了', actionBlock: [] } // [修改]
+                    ]
+                }} 
+            },
         },
-        connections: [ ["map_node_hometown_station", "map_node_old_home"], ["map_node_old_home", "map_node_grandma_home"] ]
+        connections: [ 
+            ["map_node_hometown_station", "map_node_old_home"], 
+            ["map_node_old_home", "map_node_grandma_home"],
+            ["map_node_old_home", "map_node_market"] 
+        ]
     }
 };
 
@@ -598,7 +651,7 @@ gameData.locations = {
             } } }
         ] },
 	"location_grandma_home": { name: "姥姥家的房子", description: "姥姥就住在老家隔壁，你小时候经常在这里玩。", imageUrl: "images/location_grandma_home.png", hotspots: [
-            { label: "返回地图", x: 60, y: 60, 
+            { label: "返回地图", x: 80, y: 80, 
 				interaction: { 
 					type: 'interactive_dialogue', 
 					payload: {
@@ -624,37 +677,113 @@ gameData.locations = {
                           options: [
                               { text: '“谢谢姥姥。”', actionBlock: [ 
                                   { action: { type: 'log', payload: { text: '姥姥往你手里塞了200块。' } } },
-								  { action: { type: 'log', payload: { text: '你获得了<strong><span style="color:var(--error-color)">200</span></strong>元' } } },
                                   { action: { type: 'effect', payload: { gold: 200 } } },
                                 ] 
                               }
                           ]
                       }
                     },
-                    { text: '“姥姥，这是我妈让我给您带的咸鱼。”',
-					  conditions: [
-                                    { type: 'variable', varId: 'q_visit_grandma', comparison: '==', value: 1 }
-                                ],
-                      actionBlock: [
-								  { action: { type: 'remove_item', payload: { itemId: 'item_salted_fish', quantity: 2 } } },
-								  { action: { type: 'complete_quest', payload: { questId: 'quest_visit_grandma' } } },
-                                ],
-					  followUp: {
-						  dialogueText: '姥姥接过咸鱼：“有心了。”',
-						  options: [
-                              { text: '“嘿嘿。”', 
-							    actionBlock: [ 
-                                ] 
-                              }
-                          ]
-                      }
+                    { 
+                        text: '“姥姥，这是我妈让我给您带的咸鱼。”',
+                        conditions: [
+                            { type: 'variable', varId: 'q_visit_grandma', comparison: '==', value: 1 },
+                            { type: 'has_item', itemId: 'item_salted_fish', quantity: 2 }
+                        ],
+                        actionBlock: [
+                            { action: { type: 'remove_item', payload: { itemId: 'item_salted_fish', quantity: 2 } } },
+                            { action: { type: 'complete_quest', payload: { questId: 'quest_visit_grandma' } } },
+                        ],
+                        followUp: {
+                            dialogueText: '姥姥接过咸鱼：“有心了。”',
+                            options: [
+                                { 
+                                    text: '“嘿嘿，姥姥喜欢吃咸鱼吗？”',
+                                    followUp: {
+                                        dialogueText: '“那可太喜欢了，每周必吃！”',
+                                        options: [ { text: '（结束对话）' } ]
+                                    }
+                                },
+                                {
+                                    text: '“咸鱼有什么好吃的？我喜欢吃排骨。”',
+                                    conditions: [{ type: 'variable', varId: 'q_buy_ribs', comparison: '!=', value: 1 }],
+                                    followUp: {
+                                        dialogueText: '“你喜欢吃排骨？那给你个任务。\n去菜市场买2斤排骨，姥姥中午给你做排骨吃。”',
+                                        options: [
+                                            {
+                                                text: '“好的！”',
+                                                actionBlock: [
+                                                    { action: { type: 'log', payload: { text: '姥姥给了你100元买排骨。' } } },
+                                                    { action: { type: 'effect', payload: { gold: 100 } } },
+                                                    { action: { type: 'acceptJob', payload: { jobId: 'job_buy_ribs' } } }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
                     },
-                    
+                    {
+                        text: '“姥姥，排骨买回来啦！”',
+                        conditions: [
+                            { type: 'variable', varId: 'q_buy_ribs', comparison: '==', value: 1 },
+                            { type: 'has_item', itemId: 'item_ribs', quantity: 2 }
+                        ],
+                        actionBlock: [
+                            { action: { type: 'remove_item', payload: { itemId: 'item_ribs', quantity: 2 } } },
+                            { action: { type: 'complete_quest', payload: { questId: 'quest_buy_ribs' } } }
+                        ]
+                    }
                 ]
             }}},
 			
         ] },
+    "location_market": {
+        name: "老家菜市场",
+        description: "一个充满烟火气的地方，各种叫卖声此起彼伏。",
+        imageUrl: "images/location_market.png",
+        hotspots: [
+            { 
+                label: "返回地图", x: 80, y: 80, 
+                interaction: { type: 'interactive_dialogue', payload: {
+                    title: '离开菜市场',
+                    options: [
+                        { text: '确认', actionBlock: [{ action: { type: 'showMap' } }] },
+                        { text: '再逛逛', actionBlock: [] }
+                    ]
+                }}
+            },
+            {
+                label: "肉摊", x: 50, y: 50,
+                interaction: { type: 'interactive_dialogue', payload: {
+                    title: '肉摊贩子',
+                    imageUrl: 'images/butcher.png',
+                    dialogueText: '“小伙子，买点什么？肉都新鲜得很！”',
+                    options: [
+                        {
+                            text: '“老板，来1斤排骨。” (30金)',
+                            conditions: [ { type: 'stat', stat: 'gold', comparison: '>=', value: 30 } ],
+                            actionBlock: [
+                                { action: { type: 'effect', payload: { gold: -30 } } },
+                                { action: { type: 'add_item', payload: { itemId: 'item_ribs', quantity: 1 } } },
+                            ],
+                            followUp: {
+                                dialogueText: '“好嘞！给你挑最好的！拿好！”',
+                                options: [ { text: '“谢谢老板。”' } ]
+                            }
+                        },
+                        {
+                            text: '（钱不够买排骨）',
+                            conditions: [ { type: 'stat', stat: 'gold', comparison: '<', value: 30 } ],
+                            actionBlock: []
+                        },
+                         {
+                            text: '“随便看看。”',
+                            actionBlock: []
+                        }
+                    ]
+                }}
+            }
+        ]
+    }
 };
-
-
-
