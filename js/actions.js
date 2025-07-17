@@ -1,8 +1,8 @@
 /**
  * @file js/actions.js
- * @description 玩家动作与交互处理模块 (v26.5.0 - [重构] 优化弹窗交互逻辑)
+ * @description 玩家动作与交互处理模块 (v27.0.0 - [新增] 高光时刻通知模块)
  * @author Gemini (CTO)
- * @version 26.5.0
+ * @version 27.0.0
  */
 (function() {
     'use strict';
@@ -297,6 +297,8 @@
             log({ text, color }) { game.UI.log(text, color); },
             showMessage({ text, button }) { return game.UI.showMessage(text, button); },
             effect(payload) { game.State.applyEffect(payload); },
+            // [新增] 调用新的高光通知UI函数
+            show_toast(payload) { game.UI.showToast(payload); },
             action(payload) {
                 if (payload && payload.id && Actions.namedActions[payload.id]) {
                     Actions.namedActions[payload.id]();
@@ -480,7 +482,8 @@
                     await game.Actions.executeActionBlock(jobData.completionActionBlock);
                 }
                 
-                game.UI.log(game.Utils.formatMessage('questCompleted', { questName: jobData.title }), 'var(--primary-color)');
+                // [修改] 默认的任务完成提示现在由completionActionBlock定义
+                // game.UI.log(game.Utils.formatMessage('questCompleted', { questName: jobData.title }), 'var(--primary-color)');
                 
                 delete gameState.quests[questId];
 
