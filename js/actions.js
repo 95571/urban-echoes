@@ -1,8 +1,8 @@
 /**
  * @file js/actions.js
- * @description 玩家动作与交互处理模块 (v27.0.0 - [新增] 高光时刻通知模块)
+ * @description 玩家动作与交互处理模块 (v31.0.0 - [引擎] 重构物品堆叠与丢弃逻辑)
  * @author Gemini (CTO)
- * @version 27.0.0
+ * @version 31.0.0
  */
 (function() {
     'use strict';
@@ -297,7 +297,6 @@
             log({ text, color }) { game.UI.log(text, color); },
             showMessage({ text, button }) { return game.UI.showMessage(text, button); },
             effect(payload) { game.State.applyEffect(payload); },
-            // [新增] 调用新的高光通知UI函数
             show_toast(payload) { game.UI.showToast(payload); },
             action(payload) {
                 if (payload && payload.id && Actions.namedActions[payload.id]) {
@@ -482,9 +481,6 @@
                     await game.Actions.executeActionBlock(jobData.completionActionBlock);
                 }
                 
-                // [修改] 默认的任务完成提示现在由completionActionBlock定义
-                // game.UI.log(game.Utils.formatMessage('questCompleted', { questName: jobData.title }), 'var(--primary-color)');
-                
                 delete gameState.quests[questId];
 
                 if (gameState.gameState === 'MENU' && gameState.menu.current === 'QUESTS') {
@@ -534,6 +530,13 @@
             const gameState = game.State.get();
             const item = gameState.inventory[index];
             const itemData = gameData.items[item.id];
+
+            // [修改] 检查是否可丢弃
+            if (itemData.droppable === false) {
+                await game.UI.showMessage('这个物品很重要，不能丢弃。');
+                return;
+            }
+
             const choice = await game.UI.showConfirmation({
                 title: `确定要丢弃 ${itemData.name} x${item.quantity} 吗？`,
                 options: [{text: '丢弃', value: true, class: 'danger-button'}, {text: '取消', value: false, class: 'secondary-action'}]
@@ -543,6 +546,7 @@
                 game.UI.render(); 
             } 
         },
+        // [修改] 统一所有物品的堆叠逻辑
         addItemToInventory(id, q = 1) { 
             const gameState = game.State.get();
             const itemData = gameData.items[id];
@@ -550,15 +554,12 @@
 
             game.UI.log(game.Utils.formatMessage('getItemLoot', { itemName: itemData.name, quantity: q}), 'var(--success-color)');
 
-            if (itemData.type === 'consumable' || itemData.type === 'material') { 
-                const e = gameState.inventory.find(i => i.id === id); 
-                if (e) e.quantity += q; 
-                else gameState.inventory.push({ id: id, quantity: q }); 
-            } else { 
-                for (let i = 0; i < q; i++) {
-                    gameState.inventory.push({ id: id, quantity: 1 }); 
-                }
-            } 
+            const existingStack = gameState.inventory.find(i => i.id === id); 
+            if (existingStack) {
+                existingStack.quantity += q; 
+            } else {
+                gameState.inventory.push({ id: id, quantity: q });
+            }
         },
         setPlayerName(name) { game.State.get().name = name || '无名者'; },
         setFocusTarget(combatId) { const gameState = game.State.get(); if (!gameState.isCombat) return; gameState.combatState.focusedTargetId = combatId; game.UI.render(); },
