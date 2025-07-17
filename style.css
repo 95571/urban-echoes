@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 (v26.2.0 - [优化] 任务日志UI)
+ * @description 游戏样式表 (v27.0.0 - [新增] 高光时刻通知模块)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -179,6 +179,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     display: flex; justify-content: center; align-items: center; 
     opacity: 0; transition: opacity 0.1s ease-in-out; 
     pointer-events: none; backdrop-filter: blur(2px);
+    z-index: 1000;
 }
 .modal-overlay.visible { opacity: 1; pointer-events: all; }
 
@@ -218,7 +219,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
 .title-buttons { display: flex; flex-direction: column; gap: 15px; width: 240px; }
 .title-buttons button { width: 100%; font-size: 1.1em; padding: 12px; }
 
-.custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(50, 40, 30, 0.7); display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.1s ease-in-out; pointer-events: none; backdrop-filter: blur(2px); }
+.custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(50, 40, 30, 0.7); display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.1s ease-in-out; pointer-events: none; backdrop-filter: blur(2px); z-index: 1100; }
 .custom-modal-overlay.visible { opacity: 1; pointer-events: all; }
 .custom-modal-box { background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px; transform: scale(0.95); transition: transform 0.1s ease-in-out; display: flex; flex-direction: column; max-height: 80vh; }
 .custom-modal-overlay.visible .custom-modal-box { transform: scale(1); }
@@ -346,7 +347,6 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     cursor: grabbing;
 }
 
-/* [新增] 任务标题条目样式 */
 .quest-title-entry {
     background-color: var(--surface-color);
     padding: 12px 15px;
@@ -367,7 +367,6 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     opacity: 0.8;
 }
 
-/* [新增] 任务详情弹窗内样式 */
 .quest-details-content h4 {
     margin-top: 0;
     margin-bottom: 10px;
@@ -389,8 +388,83 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     padding: 4px 0;
 }
 
+/* [新增] 高光时刻通知 (Toast) */
+#toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast-notification {
+    pointer-events: all;
+    background-color: rgba(58, 91, 146, 0.9);
+    color: var(--text-on-primary-color);
+    padding: 12px 20px;
+    border-radius: 25px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    animation: toast-fade-in 0.5s forwards;
+    opacity: 0;
+    min-width: 280px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.toast-notification.fade-out {
+    animation: toast-fade-out 0.5s forwards;
+}
+
+.toast-icon {
+    font-size: 1.8em;
+}
+
+.toast-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.toast-title {
+    font-weight: 700;
+    font-size: 1em;
+}
+
+.toast-text {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
 
 /* --- 动画效果 --- */
+@keyframes toast-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes toast-fade-out {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 @keyframes combat-hit-animation { 0% { transform: translate(0, 0) rotate(0); } 15% { transform: translate(-2px, -2px) rotate(-1deg); } 30% { transform: translate(2px, 0) rotate(1deg); } 45% { transform: translate(-2px, 2px) rotate(-1deg); } 60% { transform: translate(2px, -2px) rotate(1deg); } 75% { transform: translate(-2px, 0) rotate(-1deg); } 100% { transform: translate(0, 0) rotate(0); } }
 @keyframes combat-attack-animation { 0% { transform: translateY(0); } 50% { transform: translateY(20px); } 100% { transform: translateY(0); } }
