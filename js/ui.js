@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI渲染模块 (v28.1.0 - [修复] 修复打字机跳过逻辑)
+ * @description UI渲染模块 (v36.1.0 - [修复] 修复空背包渲染报错问题)
  * @author Gemini (CTO)
- * @version 28.1.0
+ * @version 36.1.0
  */
 (function() {
     'use strict';
@@ -48,7 +48,9 @@
                     }, 100); 
                 }
             
-                game.UI.render();
+                if (game.state.gameState === 'MENU') {
+                    game.UI.render();
+                }
             },
             
             createModalElement(modalConfig, stackIndex) {
@@ -67,6 +69,9 @@
                         break;
                     case 'quest_details':
                         overlay = this.createQuestDetailsDOM(modalConfig);
+                        break;
+                    case 'item_details':
+                        overlay = this.createItemDetailsDOM(modalConfig);
                         break;
                     default:
                         overlay = this.createStandardDialogueDOM(modalConfig);
@@ -119,6 +124,59 @@
                 const overlay = this.createModalFrame(title, contentHtml, actionsHtml);
                 
                 overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
+
+                return overlay;
+            },
+
+            createItemDetailsDOM(modalConfig) {
+                const { item, itemData, index } = modalConfig.payload;
+
+                let effectsHtml = '';
+                if (itemData.effect || (itemData.onUseActionBlock && itemData.onUseActionBlock.some(a => a.action.type === 'effect'))) {
+                    effectsHtml += `<div class="item-details-effects"><h4>效果</h4><ul>`;
+                    
+                    const combinedEffects = {...(itemData.effect || {})};
+                    if (itemData.onUseActionBlock) {
+                         itemData.onUseActionBlock.filter(a => a.action.type === 'effect').forEach(effAction => {
+                            for(const key in effAction.action.payload) {
+                                combinedEffects[key] = (combinedEffects[key] || 0) + effAction.action.payload[key];
+                            }
+                        });
+                    }
+
+                    const effectKeyMap = { hp: '健康', mp: '精力', str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运' };
+                    for (const key in combinedEffects) {
+                        const value = combinedEffects[key];
+                        const sign = value > 0 ? '+' : '';
+                        const name = effectKeyMap[key] || key;
+                        effectsHtml += `<li class="${value < 0 ? 'negative' : ''}">${name} ${sign}${value}</li>`;
+                    }
+                    effectsHtml += `</ul></div>`;
+                }
+
+                const contentHtml = `
+                    <div class="item-details-content">
+                        <div class="item-details-image" style="background-image: url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')"></div>
+                        <div class="item-details-info">
+                            <h4>${itemData.name} &times;${item.quantity}</h4>
+                            <p>${itemData.description}</p>
+                        </div>
+                        ${effectsHtml}
+                    </div>
+                `;
+
+                let actionsHtml = '';
+                if (itemData.type === 'consumable') actionsHtml += `<button data-action="useItem" data-index="${index}">使用</button>`;
+                if (itemData.slot) actionsHtml += `<button data-action="equipItem" data-index="${index}">装备</button>`;
+                actionsHtml += `<button class="danger-button" data-action="dropItem" data-index="${index}">丢弃</button>`;
+                
+                const overlay = this.createModalFrame('物品详情', contentHtml, actionsHtml);
+
+                overlay.querySelectorAll('[data-action]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.hideAll();
+                    });
+                });
 
                 return overlay;
             },
@@ -238,7 +296,6 @@
                     };
                     
                     const showNextSegment = () => {
-                        // [修改] 核心打字机跳过逻辑
                         if (UI.isTyping) {
                             clearTimeout(UI.typewriterTimeout);
                             UI.isTyping = false;
@@ -467,7 +524,7 @@
                 if (actionTarget) {
                     const action = actionTarget.dataset.action;
                     if (game.Actions[action]) {
-                        const param = actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id;
+                        const param = actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id || actionTarget.dataset.filter;
                         event.stopPropagation();
                         game.Actions[action](param);
                         return;
@@ -484,6 +541,16 @@
                     } else if (gameState.menu.current === 'STATUS') {
                         const targetSkill = target.closest('.skill-list-entry');
                         if (targetSkill) game.Actions.viewSkillDetail(targetSkill.dataset.id);
+                    } else if (gameState.menu.current === 'INVENTORY') {
+                        const filterTab = target.closest('.inventory-filter-tab');
+                        if (filterTab && filterTab.dataset.filter) {
+                            game.state.menu.inventoryFilter = filterTab.dataset.filter;
+                            this.render();
+                        }
+                        const itemEntry = target.closest('.inventory-item-entry');
+                        if (itemEntry && itemEntry.dataset.index) {
+                            this.showItemDetails(itemEntry.dataset.index);
+                        }
                     }
                 } else if (gameState.gameState === 'MAP') {
                     const mapNode = target.closest('.map-node');
@@ -674,6 +741,13 @@
 
             return this.ModalManager.push({ type: 'quest_details', payload: { jobData, questInstance, status } });
         },
+        showItemDetails(inventoryIndex) {
+            const gameState = game.State.get();
+            const item = gameState.inventory[inventoryIndex];
+            if (!item) return;
+            const itemData = gameData.items[item.id];
+            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData, index: inventoryIndex }});
+        },
 
         screenRenderers: {
             TITLE() { const dom = game.dom; dom.screen.className = 'title-screen'; dom.screen.innerHTML = ` <div class="title-content"> <h1 class="game-title">都市回响</h1> <p class="game-subtitle">Urban Echoes</p> <div class="title-buttons"> <button data-action="newGame">新的人生</button> <button data-action="showLoadScreen">杭城旧梦</button> <button data-action="showAchievements">成就殿堂</button> <button data-action="showAbout">关于游戏</button> </div> </div> `; },
@@ -745,7 +819,91 @@
             renderPerksList(unit, container){ container.innerHTML = `<h4>已掌握专长</h4><ul class="stat-list perks-list"></ul>`; const list = container.querySelector('ul'); let hasPerks = false; if(unit.skillState) { for(const skillId in unit.skillState){ const skillState = unit.skillState[skillId]; if (skillState.unlockedPerks.length > 0) hasPerks = true; skillState.unlockedPerks.forEach(perkId => { const perkData = gameData.perkLibrary[perkId]; if(!perkData) return; const clone = this.createFromTemplate('template-perk-item', { 'perk-name': perkData.name }); clone.querySelector('li').title = perkData.description; list.appendChild(clone); }); } } if (!hasPerks) list.innerHTML = '<li>尚未掌握任何专长。</li>'; },
             renderSkillList(unit, container) { container.innerHTML = `<h4>技能熟练度</h4><div class="skill-grid-container"></div>`; const grid = container.querySelector('.skill-grid-container'); const skillState = unit.skillState; if (!skillState || Object.keys(skillState).length === 0) { grid.innerHTML = '<p>尚未学习任何技能。</p>'; return; } for (const skillId in skillState) { const state = skillState[skillId]; const data = gameData.skillLibrary[skillId]; if (!data) continue; const requiredProf = game.Proficiency.getRequiredForLevel(skillId, state.level + 1); const progressPercent = requiredProf > 0 && requiredProf !== Infinity ? Math.min(100, (state.proficiency / requiredProf) * 100) : (state.level >= 100 ? 100 : 0); const clone = this.createFromTemplate('template-skill-proficiency-item', { 'skill-name': data.name, 'skill-level': `Lv. ${state.level}` }); const entry = clone.querySelector('.skill-list-entry'); entry.dataset.id = skillId; clone.querySelector('.proficiency-bar').title = `熟练度: ${state.level >= 100 ? 'MAX' : `${state.proficiency} / ${requiredProf}`}`; clone.querySelector('.proficiency-bar-fill').style.width = `${progressPercent}%`; grid.appendChild(clone); } },
             renderSkillDetail(container, skillId) { const gameState = game.State.get(); const skillData = gameData.skillLibrary[skillId]; const skillState = gameState.skillState[skillId]; if (!skillData || !skillState) { container.innerHTML = `<p>无法找到技能详情。</p>`; return; } let perksByTier = {}; if (skillData.perkTree) { for (const level in skillData.perkTree) { skillData.perkTree[level].forEach(perkId => { if (!perksByTier[level]) perksByTier[level] = []; perksByTier[level].push(perkId); }); } } let perkTreeHtml = '<div class="perk-tree-container">'; for (const level of Object.keys(perksByTier).sort((a,b) => a-b)) { perkTreeHtml += `<div class="perk-tier"><h4 class="perk-tier-header">等级 ${level} 自动解锁</h4><div class="perk-nodes-list">`; perksByTier[level].forEach(perkId => { const perkData = gameData.perkLibrary[perkId]; const isLearned = skillState.unlockedPerks.includes(perkId); perkTreeHtml += `<div class="perk-node"><div class="perk-node-icon">✨</div><div class="perk-node-info"><strong>${perkData.name}</strong><small>${perkData.description}</small></div>${isLearned ? '<span style="color:var(--success-color); grid-column: 1 / -1; font-weight:bold; font-size: 0.9em; margin-top: 5px;">✓ 已掌握</span>' : ''}</div>`; }); perkTreeHtml += `</div></div>`; } perkTreeHtml += '</div>'; container.innerHTML = `<button class="back-button" data-action="viewSkillDetail" data-id="">返回状态页</button><div style="text-align: center; margin: 1rem 0;"><h3>${skillData.name} - 专长树</h3><p>${skillData.description}</p></div>${perkTreeHtml}`; },
-            INVENTORY(container) { const gameState = game.State.get(); container.innerHTML = `<h4>装备中</h4><ul id="equipped-list"></ul><h4>背包</h4><ul id="inventory-list"></ul>`; const equippedList = container.querySelector('#equipped-list'); const inventoryList = container.querySelector('#inventory-list'); Object.entries({mainHand: "工具", body: "服装", accessory1: "饰品1", accessory2: "饰品2"}).forEach(([slot, name]) => { const itemId = gameState.equipped[slot]; const item = itemId ? gameData.items[itemId] : null; const clone = this.createFromTemplate('template-equipped-item', { 'item-slot-name': name, 'item-name': item ? item.name : '[空]' }); const unequipButton = clone.querySelector('.unequip-button'); if (item) { unequipButton.dataset.action = 'unequipItem'; unequipButton.dataset.slot = slot; } else { unequipButton.remove(); } equippedList.appendChild(clone); }); if (gameState.inventory.length === 0) { inventoryList.innerHTML = '<li>背包是空的。</li>'; return; } gameState.inventory.forEach((item, index) => { const itemData = gameData.items[item.id]; const clone = this.createFromTemplate('template-inventory-item', { 'item-name-quantity': `${itemData.name} x${item.quantity}` }); const actionsContainer = clone.querySelector('.item-actions'); if (itemData.type === 'consumable') { const useButton = document.createElement('button'); useButton.textContent = '使用'; useButton.dataset.action = 'useItem'; useButton.dataset.index = index; actionsContainer.appendChild(useButton); } else if (itemData.slot) { const equipButton = document.createElement('button'); equipButton.textContent = '装备'; equipButton.dataset.action = 'equipItem'; equipButton.dataset.index = index; actionsContainer.appendChild(equipButton); } const dropButton = document.createElement('button'); dropButton.textContent = '丢弃'; dropButton.className = 'danger-button'; dropButton.dataset.action = 'dropItem'; dropButton.dataset.index = index; actionsContainer.appendChild(dropButton); inventoryList.appendChild(clone); }); },
+            INVENTORY(container) {
+                const gameState = game.State.get();
+                let equippedHtml = '<h4>装备中</h4><ul id="equipped-list">';
+                for (const slotId in gameState.equipped) {
+                    const slot = gameState.equipped[slotId];
+                    const item = slot.itemId ? gameData.items[slot.itemId] : null;
+                    const clone = this.createFromTemplate('template-equipped-item', {
+                        'item-slot-name': slot.name,
+                        'item-name': item ? item.name : '[空]'
+                    });
+                    const unequipButton = clone.querySelector('.unequip-button');
+                    if (item) {
+                        unequipButton.dataset.action = 'unequipItem';
+                        unequipButton.dataset.slot = slotId;
+                    } else {
+                        unequipButton.remove();
+                    }
+                    const li = document.createElement('li');
+                    li.appendChild(clone);
+                    equippedHtml += li.innerHTML;
+                }
+                equippedHtml += `</ul>`;
+
+                const filters = ['全部', '装备', '消耗品', '材料', '重要'];
+                const currentFilter = gameState.menu.inventoryFilter || '全部';
+                let filterHtml = '<div class="inventory-filter-tabs">';
+                filters.forEach(filter => {
+                    const isActive = filter === currentFilter;
+                    filterHtml += `<button class="inventory-filter-tab ${isActive ? 'active' : ''}" data-filter="${filter}">${filter}</button>`;
+                });
+                filterHtml += '</div>';
+
+                container.innerHTML = `${equippedHtml}<h4>背包</h4>${filterHtml}<ul id="inventory-list"></ul>`;
+                
+                const inventoryList = container.querySelector('#inventory-list');
+                const filteredInventory = gameState.inventory.map((item, index) => ({...item, originalIndex: index})).filter(item => {
+                    const itemData = gameData.items[item.id];
+                    if (!itemData) return false;
+                    switch (currentFilter) {
+                        case '装备': return !!itemData.slot;
+                        case '消耗品': return itemData.type === 'consumable';
+                        case '材料': return itemData.type === 'material';
+                        case '重要': return itemData.droppable === false;
+                        case '全部': default: return true;
+                    }
+                });
+                
+                inventoryList.innerHTML = '';
+                // [修复] 增加空值判断
+                if (filteredInventory && filteredInventory.length > 0) {
+                     filteredInventory.forEach(item => {
+                        const itemData = gameData.items[item.id];
+                        const clone = this.createFromTemplate('template-inventory-item', { 'item-name-quantity': `${itemData.name} x${item.quantity}` });
+                        
+                        const entry = clone.querySelector('.inventory-item-entry');
+                        entry.dataset.index = item.originalIndex;
+
+                        const actionsContainer = clone.querySelector('.item-actions');
+                        
+                        if (itemData.type === 'consumable') {
+                            const useButton = document.createElement('button');
+                            useButton.textContent = '使用';
+                            useButton.dataset.action = 'useItem';
+                            useButton.dataset.index = item.originalIndex;
+                            actionsContainer.appendChild(useButton);
+                        }
+                        if (itemData.slot) { 
+                            const equipButton = document.createElement('button');
+                            equipButton.textContent = '装备';
+                            equipButton.dataset.action = 'equipItem';
+                            equipButton.dataset.index = item.originalIndex;
+                            actionsContainer.appendChild(equipButton);
+                        }
+                        
+                        const dropButton = document.createElement('button');
+                        dropButton.textContent = '丢弃';
+                        dropButton.className = 'danger-button';
+                        dropButton.dataset.action = 'dropItem';
+                        dropButton.dataset.index = item.originalIndex;
+                        actionsContainer.appendChild(dropButton);
+                        
+                        inventoryList.appendChild(clone);
+                    });
+                }
+            },
             QUESTS(container) {
                 const gameState = game.State.get();
                 container.innerHTML = `

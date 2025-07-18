@@ -1,8 +1,8 @@
 /**
  * @file js/state.js
- * @description 游戏状态管理模块 (v25.8.0 - [重构] 剥离SaveLoad功能)
+ * @description 游戏状态管理模块 (v32.0.0 - [引擎] 为物品栏增加筛选状态)
  * @author Gemini (CTO)
- * @version 25.8.0
+ * @version 32.0.0
  */
 (function() {
     'use strict';
@@ -15,22 +15,18 @@
             this.updateAllStats(true);
             this.setUIMode(game.state.gameState);
         },
-        // [重构] 核心状态更新函数
         updateAllStats(isInitialization = false) {
-            // 1. 从唯一的中央计算函数获取最新的、完整的有效属性
             game.state.effectiveStats = game.Utils.calculateEffectiveStatsForUnit(game.state);
             
             const newMaxHp = game.state.effectiveStats.maxHp;
             const newMaxMp = game.state.effectiveStats.maxMp;
 
             if (isInitialization) {
-                // 初始化时，直接设定当前HP/MP
                 game.state.maxHp = newMaxHp;
                 game.state.maxMp = newMaxMp;
                 if (game.state.hp === undefined) game.state.hp = newMaxHp;
                 if (game.state.mp === undefined) game.state.mp = newMaxMp;
             } else {
-                // 非初始化（如穿脱装备）时，按比例调整当前HP/MP
                 const hpRatio = (game.state.maxHp > 0) ? (game.state.hp / game.state.maxHp) : 1;
                 const mpRatio = (game.state.maxMp > 0) ? (game.state.mp / game.state.maxMp) : 1;
                 game.state.maxHp = newMaxHp;
@@ -48,6 +44,12 @@
             if (mode === "MENU") {
                 if (!game.state.menu) game.state.menu = {};
                 game.state.menu.current = options.screen;
+
+                // [新增] 初始化或重置物品筛选器
+                if (options.screen === 'INVENTORY' && !game.state.menu.inventoryFilter) {
+                    game.state.menu.inventoryFilter = '全部';
+                }
+
                 if (options.screen !== 'STATUS') game.state.menu.skillDetailView = null;
                 if(options.screen !== 'PARTY' && options.screen !== 'STATUS') game.state.menu.statusViewTargetId = null;
             }
@@ -71,7 +73,6 @@
             if(typeof effect.mp === 'number') {
                 state.mp = Math.max(0, Math.min(state.maxMp, state.mp + effect.mp));
             }
-            // 任何可能影响属性的效果应用后，都必须调用一次全局更新
             this.updateAllStats(false);
             game.UI.renderTopBar();
         }

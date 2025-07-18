@@ -1,8 +1,8 @@
 /**
  * @file data.js
- * @description 游戏内容配置文件 (v32.1.0 - [修复] 优化物品获取日志及地图交互)
+ * @description 游戏内容配置文件 (v36.0.0 - [内容] 修复初始物品配置)
  * @author Gemini (PM/CTO)
- * @version 32.1.0
+ * @version 36.0.0
  */
 window.gameData = {};
 
@@ -130,15 +130,15 @@ gameData.jobs = {
 
 gameData.items = {
     "item_phone": { 
-        name: "智能手机", type: "accessory", slot: "accessory1", 
-        description: "现代人的必需品。", 
+        name: "智能手机", type: "key_item",
+        description: "现代人的必需品，记录着你的点点滴滴。", 
         droppable: false,
-        effect: { lck: 1 } 
     },
     "item_energy_drink": { 
         name: "功能饮料", type: "consumable", 
         description: "一罐能让你瞬间精神抖擞的神奇液体，但似乎对健康没什么好处。", 
         droppable: true,
+        imageUrl: 'images/item_energy_drink.png',
         onUseActionBlock: [
             { action: { type: 'log', payload: { text: '你喝下功能饮料，感觉精力充沛，但心脏有些不舒服。', color: 'var(--primary-color)' } } },
             { action: { type: 'effect', payload: { mp: 40, hp: -5 } } }
@@ -148,6 +148,7 @@ gameData.items = {
         name: "咸鱼", type: "material", 
         description: "妈妈让你带给姥姥的咸鱼，闻起来很香。",
         droppable: true,
+        imageUrl: 'images/item_salted_fish.png',
     },
     "item_ribs": {
         name: "新鲜的排骨", type: "material", 
@@ -206,7 +207,7 @@ gameData.systemMessages = {
     fleeFail: "你试图逃跑，但是失败了！",
     extraTurnSuccess: "⚡ ${name} 的速度惊人，获得了额外行动机会！",
     getLoot: "你获得了 ${gold} ${goldIcon}。",
-    getItemLoot: "获得了 [${itemName}] x${quantity}。", // [修改]
+    getItemLoot: "获得了 [${itemName}] x${quantity}。",
     equipItem: "装备了 [${itemName}]。",
     unequipItem: "卸下了 [${itemName}]。",
     fullHeal: "你好好休息了一下，健康和精力都完全恢复了！",
@@ -339,13 +340,21 @@ gameData.initialPlayerState = {
     hp: 100, maxHp: 100, mp: 100,  maxMp: 100,
     stats: { str: 5, dex: 5, int: 5, con: 5, lck: 5 },
     derivedStats: {},
-    inventory: [ { id: "item_phone", quantity: 1 }, { id: "item_energy_drink", quantity: 2 }, ],
-    equipped: { mainHand: null, body: null, accessory1: "item_phone", accessory2: null },
+    // [修复] 将手机添加回初始物品清单
+    inventory: [ { id: "item_phone", quantity: 1 }, { id: "item_energy_drink", quantity: 2 } ],
+    equipped: {
+        mainHand: { name: "主手", itemId: null },
+        head:     { name: "头部", itemId: null },
+        body:     { name: "上身", itemId: null },
+        legs:     { name: "下身", itemId: null },
+        feet:     { name: "脚部", itemId: null },
+        accessory: { name: "饰品", itemId: null }
+    },
     skillState: { "skill_eloquence": { level: 1, proficiency: 0, unlockedPerks: [] } },
     quests: {}, 
     flags: { cheat_unlocked: false },
     variables: {},
-    menu: { current: null, skillDetailView: null, statusViewTargetId: null },
+    menu: { current: null, skillDetailView: null, statusViewTargetId: null, inventoryFilter: '全部' },
     party: [ 
         { id: "mother", name: "妈妈", description: "一位关心你的职场白领。工作很忙，但总是会为你准备好热腾腾的饭菜。" },
         { id: "sister", name: "妹妹", description: "一位有些叛逆的可爱高中生。嘴上不说，其实很依赖你。" }
@@ -453,7 +462,7 @@ gameData.maps = {
                                 options: [{text: "好吧"}]
                             }
                         },
-                        { text: '算了', actionBlock: [] } // [修改]
+                        { text: '算了', actionBlock: [] }
                     ]
                 }} 
             },
@@ -502,8 +511,7 @@ gameData.locations = {
                           options: [
                               { text: '“嗯...谢谢妈。”', actionBlock: [ 
                                   { action: { type: 'log', payload: { text: '你感到一阵暖心。' } } },
-								  { action: { type: 'log', payload: { text: '你的<strong><span style="color:var(--error-color)">mp+10</span></strong>' } } },
-                                  { action: { type: 'effect', payload: { mp: 10 } } } 
+								  { action: { type: 'effect', payload: { mp: 10 } } } 
                                 ] 
                               }
                           ]
@@ -537,7 +545,6 @@ gameData.locations = {
                         victoryPrompt: '你干净利落地解决了麻烦！',
                         defeatPrompt: '双拳难敌众手...',
                         victoryActionBlock: [
-                            { action: { type: 'log', payload: { text: '你击败了这伙恶棍，感觉自己变强了！', color: 'var(--primary-color)' } } },
                             { action: { type: 'set_flag', payload: { flagId: 'defeated_test_thugs', value: true } } },
                             { action: { type: 'effect', payload: { gold: 150 } } },
                             { action: { type: 'add_item', payload: { itemId: 'item_energy_drink', quantity: 1 } } }
@@ -545,7 +552,7 @@ gameData.locations = {
                         defeatActionBlock: [
                             { action: { type: 'log', payload: { text: '你被狠狠地教训了一顿，混混们搜走了你身上一些财物。', color: 'var(--error-color)' } } },
                             { action: { type: 'effect', payload: { gold: -100 } } },
-                            { action: { type: 'remove_item', payload: { itemId: 'item_energy_drink', quantity: 1, log: '你被抢走了一罐功能饮料。', logColor: 'var(--text-muted-color)' } } },
+                            { action: { type: 'remove_item', payload: { itemId: 'item_energy_drink', quantity: 1 } } },
                             { action: { type: 'modify_variable', payload: { varId: 'thug_defeat_count', operation: 'add', value: 1, log: '（你感觉更了解街头生存的残酷了。）', logColor: 'var(--skill-color)' } } }
                         ]
                     } 

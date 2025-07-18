@@ -1,8 +1,8 @@
 /**
  * @file js/actions.js
- * @description 玩家动作与交互处理模块 (v31.0.0 - [引擎] 重构物品堆叠与丢弃逻辑)
+ * @description 玩家动作与交互处理模块 (v35.0.0 - [引擎] 适配最终版扁平化装备逻辑)
  * @author Gemini (CTO)
- * @version 31.0.0
+ * @version 35.0.0
  */
 (function() {
     'use strict';
@@ -504,34 +504,61 @@
             game.UI.render(); 
         },
 
-        equipItem(index) { 
+        // [修改] 装备物品逻辑，适配扁平化结构
+        equipItem(index) {
             const gameState = game.State.get();
-            const i = gameState.inventory[index]; if (!i) return; 
-            const d = gameData.items[i.id]; if (!d || !d.slot) return; 
-            if (gameState.equipped[d.slot]) { this.unequipItem(d.slot, true); } 
-            gameState.equipped[d.slot] = i.id; 
-            gameState.inventory.splice(index, 1); 
-            game.UI.log(game.Utils.formatMessage('equipItem', { itemName: d.name })); 
-            game.State.updateAllStats(false); 
-            game.UI.render(); 
-        }, 
-        unequipItem(slot, internal = false) { 
+            const itemStack = gameState.inventory[index];
+            if (!itemStack) return;
+            const itemData = gameData.items[itemStack.id];
+            if (!itemData || !itemData.slot) return;
+
+            const slotId = itemData.slot;
+            const targetSlot = gameState.equipped[slotId];
+
+            if (!targetSlot) {
+                console.error(`无法找到ID为 "${slotId}" 的装备槽。`);
+                return;
+            }
+
+            // 如果槽位已有装备，先卸下
+            if (targetSlot.itemId) {
+                this.unequipItem(slotId, true);
+            }
+
+            // 装备新物品
+            targetSlot.itemId = itemStack.id;
+            itemStack.quantity--;
+            if (itemStack.quantity <= 0) {
+                gameState.inventory.splice(index, 1);
+            }
+            
+            game.UI.log(game.Utils.formatMessage('equipItem', { itemName: itemData.name }));
+            game.State.updateAllStats(false);
+            game.UI.render();
+        },
+
+        // [修改] 卸下物品逻辑，适配扁平化结构
+        unequipItem(slotId, internal = false) {
             const gameState = game.State.get();
-            const id = gameState.equipped[slot]; if (!id) return; 
-            this.addItemToInventory(id, 1); 
-            gameState.equipped[slot] = null; 
-            if (!internal) { 
-                game.UI.log(game.Utils.formatMessage('unequipItem', { itemName: gameData.items[id].name })); 
-                game.State.updateAllStats(false); 
-                game.UI.render(); 
-            } 
+            const targetSlot = gameState.equipped[slotId];
+            
+            if (!targetSlot || !targetSlot.itemId) return;
+
+            const itemToUnequipId = targetSlot.itemId;
+            this.addItemToInventory(itemToUnequipId, 1);
+            targetSlot.itemId = null;
+
+            if (!internal) {
+                game.UI.log(game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }));
+                game.State.updateAllStats(false);
+                game.UI.render();
+            }
         },
         async dropItem(index) { 
             const gameState = game.State.get();
             const item = gameState.inventory[index];
             const itemData = gameData.items[item.id];
 
-            // [修改] 检查是否可丢弃
             if (itemData.droppable === false) {
                 await game.UI.showMessage('这个物品很重要，不能丢弃。');
                 return;
@@ -546,7 +573,6 @@
                 game.UI.render(); 
             } 
         },
-        // [修改] 统一所有物品的堆叠逻辑
         addItemToInventory(id, q = 1) { 
             const gameState = game.State.get();
             const itemData = gameData.items[id];

@@ -1,15 +1,14 @@
 /**
  * @file js/utils.js
- * @description 通用工具与条件检查器模块 (v30.0.0 - [引擎] 新增has_item条件；修复stat条件)
+ * @description 通用工具与条件检查器模块 (v35.0.0 - [引擎] 适配最终版扁平化装备结构)
  * @author Gemini (CTO)
- * @version 30.0.0
+ * @version 35.0.0
  */
 (function() {
-    'usestrict';
+    'use strict';
     const game = window.game;
     const gameData = window.gameData;
 
-    // --- 条件检查器 ---
     const ConditionChecker = {
         evaluate(conditions) {
             if (!conditions || conditions.length === 0) return true;
@@ -34,7 +33,6 @@
             flag(condition) {
                 return game.State.get().flags[condition.flagId] === condition.value;
             },
-            // [修复] 现在可以正确检查 'gold', 'hp', 'mp' 等顶级属性
             stat(condition) {
                 const state = game.State.get();
                 const effectiveStats = state.effectiveStats || state.stats;
@@ -70,7 +68,6 @@
                     default: return false;
                 }
             },
-            // [新增] 检查玩家是否持有特定物品
             has_item(condition) {
                 const inventory = game.State.get().inventory;
                 const requiredQuantity = condition.quantity || 1;
@@ -85,7 +82,6 @@
         }
     };
 
-    // --- 通用工具函数 ---
     const Utils = {
         formatMessage(messageId, context = {}) {
             let message = gameData.systemMessages[messageId];
@@ -108,15 +104,18 @@
             } catch (e) { console.error(`公式计算错误: "${formula}"`, e); return 0; }
         },
 
+        // [修改] 核心属性计算函数，适配最终的扁平化装备结构
         calculateEffectiveStatsForUnit(unit) {
             const baseStats = unit.stats || { str: 0, dex: 0, int: 0, con: 0, lck: 0 };
             const effectiveStats = { ...baseStats };
 
             if (unit.equipped) {
-                for (const slot in unit.equipped) {
-                    const itemId = unit.equipped[slot];
-                    if (!itemId) continue;
-                    const item = gameData.items[itemId];
+                // 直接遍历扁平化的装备槽位
+                for (const slotId in unit.equipped) {
+                    const slot = unit.equipped[slotId];
+                    if (!slot || !slot.itemId) continue;
+                    
+                    const item = gameData.items[slot.itemId];
                     if (item && item.effect) {
                         for (const stat in item.effect) {
                             effectiveStats[stat] = (effectiveStats[stat] || 0) + item.effect[stat];
