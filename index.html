@@ -58,8 +58,10 @@
 
     <template id="template-equipped-item">
         <li>
-            <span class="item-slot-name"></span>
-            <span class="item-name"></span>
+            <div class="inventory-item-entry">
+                <span class="item-slot-name"></span>
+                <span class="item-name"></span>
+            </div>
             <div class="item-actions">
                 <button class="unequip-button">卸下</button>
             </div>
@@ -97,13 +99,30 @@
     </template>
 
     <script src="data.js"></script>
+    <script src="data/core.js"></script>
+    <script src="data/items.js"></script>
+    <script src="data/quests.js"></script>
+    <script src="data/skills.js"></script>
+    <script src="data/monsters.js"></script>
+    <script src="data/dialogues.js"></script>
+    <script src="data/player.js"></script>
+    <script src="data/locations.js"></script>
+
     <script src="game.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/skills.js"></script>
     <script src="js/state.js"></script>
     <script src="js/save_load.js"></script>
+    
+    <script src="js/ui_modals.js"></script>
+    <script src="js/ui_menus.js"></script>
+    <script src="js/ui_screens.js"></script>
     <script src="js/ui.js"></script>
+
     <script src="js/combat.js"></script>
-    <script src="js/actions.js"></script>
+    <script src="js/actions/handlers.js"></script>
+    <script src="js/actions/interactions.js"></script>
+    <script src="js/actions/player.js"></script>
+    <script src="js/actions/system.js"></script>
 </body>
 </html>
