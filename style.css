@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 (v42.2.0 - [修复] 实现弹窗按钮的智能居中)
+ * @description 游戏样式表 (v44.0.0 - [优化] 增加主线任务高亮样式)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -17,7 +17,8 @@
     --error-color: #c0392b;
     --success-color: #27ae60;
     --exp-color: #d35400;
-    --skill-color: #8e44ad; /* 技能/专长颜色 */
+    --skill-color: #8e44ad;
+    --main-quest-color: #f39c12; /* [新增] 主线任务颜色 */
     
     /* 全局字体系统 */
     --font-family: 'Lora', 'Noto Sans SC', serif;
@@ -291,7 +292,12 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .quest-list.is-scrollable:active { cursor: grabbing; }
 .quest-title-entry { background-color: var(--surface-color); padding: 12px 15px; border-radius: 4px; margin-bottom: 6px; border-left: 3px solid var(--primary-color); cursor: pointer; transition: background-color 0.2s ease; font-weight: 500; }
 .quest-title-entry:hover { background-color: var(--panel-color); }
+/* [新增] 主线任务高亮样式 */
+.quest-title-entry.main-quest { border-left-color: var(--main-quest-color); }
 .quest-title-entry.completed { border-left-color: var(--text-muted-color); color: var(--text-muted-color); text-decoration: line-through; opacity: 0.8; }
+/* [新增] 已完成的主线任务也保持高亮 */
+.quest-title-entry.completed.main-quest { border-left-color: var(--main-quest-color); }
+
 .quest-details-content h4 { margin-top: 0; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color); color: var(--primary-color); }
 .quest-details-content p { color: var(--text-muted-color); line-height: 1.6; margin-bottom: 15px; }
 .quest-details-content ul { list-style: none; padding: 0; margin: 0; }

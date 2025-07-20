@@ -1,12 +1,13 @@
 /**
  * @file data/quests.js
- * @description 游戏内容 - 任务与兼职
+ * @description 游戏内容 - 任务与兼职 (v44.0.0 - [新增] isMain 任务类型标识)
  */
 window.gameData.jobs = {
     "job_flyer": {
         id: "job_flyer",
         questId: "quest_job_flyer",
         questVariable: "q_job_flyer", 
+        isMain: false, // 设为可重复任务
         title: "派发传单",
         description: "在市中心广场派发健身房的宣传传单。简单劳动，但有点枯燥。",
         requirements: [{ type: 'stat', stat: 'con', comparison: '>=', value: 5, text: '需要一定的体力 (体质 >= 5)' }],
@@ -26,6 +27,7 @@ window.gameData.jobs = {
         id: "job_waiter",
         questId: "quest_job_waiter",
         questVariable: "q_job_waiter",
+        isMain: false, // 设为可重复任务
         title: "餐厅服务员",
         description: "在繁忙的快餐店担任服务员，负责点餐和清洁工作。",
         requirements: [{ type: 'stat', stat: 'str', comparison: '>=', value: 6, text: '需要不错的体力 (体魄 >= 6)' }],
@@ -41,6 +43,7 @@ window.gameData.jobs = {
         id: "job_tutor",
         questId: "quest_job_tutor",
         questVariable: "q_job_tutor",
+        isMain: true, // 设为重要（主线）任务
         title: "家教老师",
         description: "为一名初中生辅导数学。需要对初中数学有较好的掌握。",
         requirements: [{ type: 'stat', stat: 'int', comparison: '>=', value: 8, text: '需要良好的学识 (学识 >= 8)' }],
@@ -56,6 +59,7 @@ window.gameData.jobs = {
         id: "job_visit_grandma",
         questId: "quest_visit_grandma",
         questVariable: "q_visit_grandma",
+        isMain: true, // 设为重要（主线）任务
         title: "看望姥姥",
         description: "妈妈让你带两条咸鱼回老家看望姥姥。",
         reward: "亲情",
@@ -73,6 +77,7 @@ window.gameData.jobs = {
         id: "job_buy_ribs",
         questId: "quest_buy_ribs",
         questVariable: "q_buy_ribs",
+        isMain: true, // 设为重要（主线）任务
         title: "给姥姥买排骨",
         description: "姥姥想吃排骨了，让你去菜市场买2斤回来。",
         reward: "姥姥的红烧排骨",

@@ -1,8 +1,8 @@
 /**
  * @file js/ui_menus.js
- * @description UI模块 - 菜单渲染器 (v41.1.0 - [修复] 统一物品与装备列表的结构和点击逻辑)
+ * @description UI模块 - 菜单渲染器 (v44.0.0 - [优化] 为主线任务增加高亮样式)
  * @author Gemini (CTO)
- * @version 41.1.0
+ * @version 44.0.0
  */
 (function() {
     'use strict';
@@ -154,7 +154,6 @@
                 const slot = gameState.equipped[slotId];
                 const item = slot.itemId ? gameData.items[slot.itemId] : null;
                 
-                // [修复] 统一使用标准的列表项结构
                 const itemDetailsHtml = item
                     ? `<div class="inventory-item-entry" data-item-id="${slot.itemId}"><span>${slot.name}</span><span class="equipped-item-name">${item.name}</span></div>`
                     : `<div class="inventory-item-entry"><span>${slot.name}</span><span>[空]</span></div>`;
@@ -275,7 +274,9 @@
                 activeListEl.innerHTML = '<li><p style="padding: 10px; color: var(--text-muted-color);">当前没有进行中的任务。</p></li>';
             } else {
                 activeQuestsList.forEach(jobData => {
-                    activeListEl.innerHTML += `<li class="quest-title-entry" data-job-id="${jobData.id}">${jobData.title}</li>`;
+                    // [修改] 检查 isMain 标志并添加对应的 class
+                    const isMainQuest = jobData.isMain ? 'main-quest' : '';
+                    activeListEl.innerHTML += `<li class="quest-title-entry ${isMainQuest}" data-job-id="${jobData.id}">${jobData.title}</li>`;
                 });
             }
 
@@ -284,7 +285,8 @@
                 completedListEl.innerHTML = '<li><p style="padding: 10px; color: var(--text-muted-color);">尚未完成任何值得记录的任务。</p></li>';
             } else {
                 completedQuestsList.forEach(jobData => {
-                    completedListEl.innerHTML += `<li class="quest-title-entry completed" data-job-id="${jobData.id}">${jobData.title}</li>`;
+                    const isMainQuest = jobData.isMain ? 'main-quest' : '';
+                    completedListEl.innerHTML += `<li class="quest-title-entry completed ${isMainQuest}" data-job-id="${jobData.id}">${jobData.title}</li>`;
                 });
             }
             
