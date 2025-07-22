@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v42.1.0 - [修复] 重新注册acceptJob动作)
+ * @description 动作模块 - ActionBlock执行器 (v50.0.0 - [重构] 移除flag系统)
  */
 (function() {
     'use strict';
@@ -34,26 +34,30 @@
                 game.UI.log(`错误：未知的动作块动作ID "${id}"`, 'var(--error-color)');
             }
         },
-        set_flag(payload) {
-            if (payload.flagId) {
-                game.State.get().flags[payload.flagId] = payload.value;
-            }
-        },
-        destroy_hotspot() {
+        // [移除] set_flag 动作
+        // set_flag(payload) { ... }
+        
+        // [修改] destroy_hotspot 重构为 destroy_scene_element
+        destroy_scene_element() {
             if (game.currentHotspotContext) {
-                const { locationId, hotspotIndex } = game.currentHotspotContext;
-                const flagId = `hotspot_destroyed_${locationId}_${hotspotIndex}`;
-                game.State.get().flags[flagId] = true;
+                const { locationId, hotspotIndex, hotspotType } = game.currentHotspotContext;
+                const keyPrefix = hotspotType === 'discovery' ? 'discovery' : 'hotspot';
+                const varId = `${keyPrefix}_destroyed_${locationId}_${hotspotIndex}`;
+                
+                // 使用 modify_variable 来设置变量
+                this.modify_variable({ varId: varId, operation: 'set', value: 1 });
+                
                 if (game.State.get().gameState === 'EXPLORE') {
                     game.UI.render();
                 }
             } else {
-                console.warn("destroy_hotspot called without a valid hotspot context.");
+                console.warn("destroy_scene_element called without a valid hotspot context.");
             }
         },
         enter_location(payload) {
             const gameState = game.State.get();
             gameState.currentLocationId = payload.locationId;
+            gameState.hotspotPageIndex = 0;
             game.State.setUIMode('EXPLORE');
             const locationName = gameData.locations[payload.locationId]?.name || '未知地点';
             game.UI.log(game.Utils.formatMessage('enterLocation', { locationName: locationName }));
@@ -90,7 +94,9 @@
                         if(time.month > 12) { time.month = 1; time.year++; }
                     }
                 }
-                game.UI.renderTopBar();
+                if (game.state.gameState !== 'TITLE') {
+                    game.UI.renderLeftPanel();
+                }
                 resolve();
             });
         },
@@ -105,9 +111,9 @@
             };
 
             if (!playerHasEnough()) {
-                return; 
+                return;
             }
-            
+
             let removedCount = 0;
             for (let i = state.inventory.length - 1; i >= 0; i--) {
                 if (removedCount >= quantity) break;
@@ -131,8 +137,8 @@
         },
         modify_variable({ varId, operation, value, log, logColor }) {
             const state = game.State.get();
-            if (!state.variables) state.variables = {}; 
-            
+            if (!state.variables) state.variables = {};
+
             const oldValue = state.variables[varId] || 0;
 
             switch(operation) {
@@ -153,8 +159,10 @@
             if (log) {
                 game.UI.log(log, logColor);
             }
+            if (state.gameState === 'EXPLORE') {
+                game.UI.render();
+            }
         },
-        // [修复] 重新注册 acceptJob 动作，并让它调用高级动作
         async acceptJob({ jobId }) {
             return game.Actions.acceptJob(jobId);
         },
@@ -165,18 +173,18 @@
 
             const jobData = gameData.jobs[questInstance.sourceJobId];
             if (!jobData) return;
-            
+
             const questVar = jobData.questVariable;
 
             if (gameState.variables[questVar] !== 1) {
                 console.warn(`Attempted to complete non-active quest: ${questId}`);
                 return;
             }
-            
+
             if (jobData.completionActionBlock) {
                 await game.Actions.executeActionBlock(jobData.completionActionBlock);
             }
-            
+
             delete gameState.quests[questId];
 
             if (gameState.gameState === 'MENU' && gameState.menu.current === 'QUESTS') {
@@ -191,7 +199,7 @@
             const action = block.action || block;
             const handler = actionHandlers[action.type];
             if (handler) {
-                await handler(action.payload);
+                await handler.call(actionHandlers, action.payload); // 确保 this 指向 actionHandlers
             } else {
                 console.error(game.Utils.formatMessage('errorUnknownAction', { type: action.type }));
             }

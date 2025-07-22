@@ -1,6 +1,6 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互
+ * @description 动作模块 - 场景与对话交互 (v50.0.0 - [重构] 移除flag系统)
  */
 (function() {
     'use strict';
@@ -22,7 +22,7 @@
             };
             game.State.setUIMode('SEQUENCE');
         },
-        
+
         endSequence() {
             const gameState = game.State.get();
             const sequenceId = gameState.activeSequence.sequenceId;
@@ -30,7 +30,7 @@
 
             if (sequenceId === 'character_creation') {
                 game.State.updateAllStats(true);
-                game.State.setUIMode('EXPLORE'); 
+                game.State.setUIMode('EXPLORE');
                 game.UI.log(game.Utils.formatMessage('gameWelcome', { playerName: gameState.name }), 'var(--primary-color)');
             } else {
                 game.State.setUIMode('EXPLORE');
@@ -41,7 +41,7 @@
             const gameState = game.State.get();
             const sequenceId = gameState.activeSequence.sequenceId;
             const questionId = gameState.activeSequence.currentQuestionId;
-            
+
             const questionData = gameData.questionSequences[sequenceId].questions[questionId];
             const answerData = questionData.answers[answerIndex];
 
@@ -90,21 +90,24 @@
             }
         },
 
-        async handleInteraction(spotData, index) {
+        async handleInteraction(spotData, index, type) {
+            // [修改] 增加 type 参数，用于区分 'hotspot' 和 'discovery'
             game.currentHotspotContext = {
                 locationId: game.State.get().currentLocationId,
-                hotspotIndex: index
+                hotspotIndex: index,
+                hotspotType: type // [新增]
             };
             if (!game.ConditionChecker.evaluate(spotData.conditions)) {
-                game.currentHotspotContext = null; 
+                game.currentHotspotContext = null;
                 return;
             }
             const interaction = spotData.interaction;
             if (!interaction || !interaction.type) {
-                game.currentHotspotContext = null; 
+                console.error("处理交互失败：交互数据格式不正确。", spotData);
+                game.currentHotspotContext = null;
                 return;
             }
-            
+
             const interactionHandlers = {
                 async interactive_dialogue(payload) {
                     if (payload) await game.UI.showConfirmation(payload);
@@ -113,12 +116,12 @@
                     if (payload) game.Combat.start(payload);
                 }
             };
-            
+
             const handler = interactionHandlers[interaction.type];
-            if (handler) { 
-                await handler(interaction.payload); 
-            } else { 
-                console.warn(game.Utils.formatMessage('errorUnknownAction', { type: interaction.type })); 
+            if (handler) {
+                await handler(interaction.payload);
+            } else {
+                console.warn(game.Utils.formatMessage('errorUnknownAction', { type: interaction.type }));
             }
             game.currentHotspotContext = null;
         },
@@ -132,7 +135,8 @@
 
             gameState.currentMapNodeId = mapNodeId;
 
-            await this.handleInteraction(nodeData, -1);
+            // 地图节点统一视为 'map_node' 类型
+            await this.handleInteraction(nodeData, -1, 'map_node');
         },
     });
 })();

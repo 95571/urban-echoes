@@ -11,18 +11,20 @@
 </head>
 <body>
     <div id="game-container">
-        <header id="top-bar"></header>
+        <aside id="left-panel"></aside>
 
         <main id="main-content">
             <div id="screen"></div>
-            <div id="message-log"></div>
+            <nav id="bottom-nav"></nav>
         </main>
 
-        <nav id="bottom-nav"></nav>
+        <aside id="right-panel">
+            <div id="message-log"></div>
+        </aside>
     </div>
 
     <div id="toast-container"></div>
-    
+
     <template id="template-core-stat-item">
         <li>
             <span class="stat-name"></span>
@@ -36,7 +38,7 @@
             <span class="stat-value"></span>
         </li>
     </template>
-    
+
     <template id="template-perk-item">
          <li title="">
             <span class="perk-icon">✨</span>
@@ -76,7 +78,7 @@
             <div class="item-actions"></div>
         </li>
     </template>
-    
+
     <template id="template-party-member-item">
         <li class="relationship-entry" data-id="">
             <div class="party-member-avatar"></div>
@@ -86,7 +88,7 @@
             </div>
         </li>
     </template>
-    
+
     <template id="template-system-save-slot">
         <li>
             <div>
@@ -113,7 +115,7 @@
     <script src="js/skills.js"></script>
     <script src="js/state.js"></script>
     <script src="js/save_load.js"></script>
-    
+
     <script src="js/ui_modals.js"></script>
     <script src="js/ui_menus.js"></script>
     <script src="js/ui_screens.js"></script>
