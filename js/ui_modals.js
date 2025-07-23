@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 弹窗管理器 (v43.0.0 - [引擎] 实现弹窗选项智能对齐)
+ * @description UI模块 - 弹窗管理器 (v43.1.0 - [修复] 移除已装备物品弹窗的按钮)
  * @author Gemini (CTO)
- * @version 43.0.0
+ * @version 43.1.0
  */
 (function() {
     'use strict';
@@ -16,13 +16,13 @@
         async push(modalConfig) {
             return new Promise(resolve => {
                 modalConfig.resolve = resolve;
-                
+
                 const newModalEl = this.createModalElement(modalConfig, this.stack.length);
                 modalConfig.domElement = newModalEl;
-                
+
                 this.stack.push(modalConfig);
                 document.body.appendChild(newModalEl);
-                
+
                 game.UI.renderBottomNav();
 
                 setTimeout(() => newModalEl.classList.add('visible'), 10);
@@ -31,21 +31,21 @@
 
         pop() {
             if (this.stack.length === 0) return;
-        
+
             const modalToPop = this.stack.pop();
             clearTimeout(game.UI.typewriterTimeout);
             game.UI.isTyping = false;
-        
+
             if (modalToPop.domElement) {
                 modalToPop.domElement.classList.remove('visible');
                 setTimeout(() => {
                     modalToPop.domElement.remove();
-                }, 100); 
+                }, 100);
             }
-        
+
             game.UI.renderBottomNav();
         },
-        
+
         createModalElement(modalConfig, stackIndex) {
             const zIndex = this.baseZIndex + stackIndex * 10;
             let overlay;
@@ -76,10 +76,10 @@
             overlay.style.zIndex = zIndex;
             return overlay;
         },
-        
+
         createQuantityPromptDOM(modalConfig) {
             const { title, max, onConfirm } = modalConfig.payload;
-            
+
             const contentHtml = `
                 <div class="quantity-prompt-content">
                     <div class="quantity-prompt-header">${title}</div>
@@ -89,14 +89,14 @@
                     </div>
                 </div>
             `;
-            
+
             const actionsHtml = `
                 <button class="quantity-cancel-btn secondary-action">取消</button>
                 <button class="quantity-confirm-btn danger-button">确认</button>
             `;
 
             const overlay = this.createModalFrame('选择数量', contentHtml, actionsHtml);
-            
+
             const input = overlay.querySelector('.quantity-input');
             const slider = overlay.querySelector('.quantity-slider');
             const confirmBtn = overlay.querySelector('.quantity-confirm-btn');
@@ -112,8 +112,8 @@
 
             input.oninput = () => syncValues(input);
             slider.oninput = () => syncValues(slider);
-            
-            input.onblur = () => { 
+
+            input.onblur = () => {
                 if (input.value === '') {
                     input.value = 1;
                     syncValues(input);
@@ -127,7 +127,7 @@
                 }
                 this.pop();
             };
-            
+
             cancelBtn.onclick = () => this.pop();
 
             return overlay;
@@ -141,43 +141,48 @@
             }
             this.pop();
         },
-        
+
         hideAll() {
             while(this.stack.length > 0) {
                 this.pop();
             }
         },
-        
+
         createModalFrame(title, contentHtml, actionsHtml) {
             const overlay = document.createElement('div');
             overlay.className = 'custom-modal-overlay';
-            
+
             const box = document.createElement('div');
             box.className = 'custom-modal-box';
-            
+
+            // [修改] 仅在提供了actionsHtml时才渲染按钮容器
             box.innerHTML = `
                 <h3 class="custom-modal-title">${title}</h3>
                 <div class="custom-modal-content">${contentHtml}</div>
-                <div class="custom-modal-actions">${actionsHtml}</div>
+                ${actionsHtml ? `<div class="custom-modal-actions">${actionsHtml}</div>` : ''}
             `;
 
             overlay.appendChild(box);
-            
+
             if (!overlay.querySelector('.quantity-prompt-content')) {
                  overlay.onclick = (e) => { if (e.target === overlay) this.pop(); };
             }
 
             return overlay;
         },
-        
+
         createCustomModalDOM(modalConfig) {
             const title = modalConfig.title || '';
             const contentHtml = modalConfig.html || '';
             const actionsHtml = `<button class="custom-modal-close-btn">关闭</button>`;
-            
+
             const overlay = this.createModalFrame(title, contentHtml, actionsHtml);
-            
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
+
+            // 如果按钮存在，则添加事件
+            const closeBtn = overlay.querySelector('.custom-modal-close-btn');
+            if (closeBtn) {
+                closeBtn.onclick = () => this.pop();
+            }
 
             return overlay;
         },
@@ -204,22 +209,19 @@
                     ${effectsHtml}
                 </div>
             `;
-            
+
             let actionsHtml = '';
             if (!isEquipped) {
                 if (itemData.type === 'consumable') actionsHtml += `<button data-action="useItem" data-index="${index}">使用</button>`;
                 if (itemData.slot) actionsHtml += `<button data-action="equipItem" data-index="${index}">装备</button>`;
                 actionsHtml += `<button class="danger-button" data-action="dropItem" data-index="${index}">丢弃</button>`;
             } else {
-                actionsHtml = `<button class="custom-modal-close-btn">关闭</button>`;
+                // [修复] 已装备物品的详情弹窗，不显示任何按钮
+                actionsHtml = '';
             }
-            
+
             const overlay = this.createModalFrame('物品详情', contentHtml, actionsHtml);
-            
-            if (isEquipped) {
-                 overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
-            }
-            
+
             const effectsListEl = overlay.querySelector('.item-details-effects-list');
             if (effectsListEl) {
                 this.makeListDraggable(effectsListEl);
@@ -234,13 +236,14 @@
             return overlay;
         },
 
+
         createStandardDialogueDOM(dialogueData) {
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay';
-            
+
             const box = document.createElement('div');
             box.className = 'modal-box';
-            
+
             box.innerHTML = `
                 <div class="modal-image-container ${dialogueData.imageUrl ? '' : ''}">
                     <div class="modal-image-title"></div>
@@ -254,7 +257,7 @@
                 </div>
             `;
             overlay.appendChild(box);
-            
+
             const imageContainer = box.querySelector('.modal-image-container');
             const imageTitle = box.querySelector('.modal-image-title');
             const textContainer = box.querySelector('.modal-text-container');
@@ -264,15 +267,15 @@
 
             const updateModalContent = (currentDialogueData) => {
                 buttonsDiv.innerHTML = '';
-                
+
                 const options = currentDialogueData.options || [];
                 const isRichMode = !!currentDialogueData.imageUrl;
-                
+
                 const availableOptions = options
                     .filter(opt => game.ConditionChecker.evaluate(opt.conditions))
                     .map((opt, index) => ({ text: opt.text, value: index, originalOption: opt }));
 
-                
+
                 textContainer.classList.toggle('rich-dialogue', isRichMode);
                 if (isRichMode) {
                     imageTitle.textContent = currentDialogueData.title || '';
@@ -281,7 +284,7 @@
                 } else {
                     imageContainer.classList.add('hidden');
                 }
-                
+
                 const handleChoice = async (chosenValue) => {
                     const chosenOptionWrapper = availableOptions.find(opt => opt.value === chosenValue);
                     if (!chosenOptionWrapper) return;
@@ -290,7 +293,7 @@
                     if (originalOption.actionBlock) {
                         await game.Actions.executeActionBlock(originalOption.actionBlock);
                     }
-                    
+
                     if (originalOption.followUp) {
                         const followUpText = originalOption.followUp.dialogueText;
                         if (Array.isArray(followUpText)) {
@@ -308,34 +311,33 @@
                         this.resolveCurrent(chosenOptionWrapper);
                     }
                 };
-                
+
                 let textSource = currentDialogueData.dialogueText || currentDialogueData.text || currentDialogueData.title || '';
                 if (Array.isArray(textSource)) {
                     textSource = textSource[Math.floor(Math.random() * textSource.length)];
                 }
-                
+
                 const fullText = textSource;
                 const textSegments = fullText.split('<br>').join('\n').split('\n').filter(s => s.trim() !== '');
                 let currentSegmentIndex = 0;
-                
+
                 const defaultAlignment = isRichMode ? 'left' : 'center';
                 textEl.style.textAlign = currentDialogueData.textAlign || defaultAlignment;
                 let shouldUseTypewriter = isRichMode;
                 if (currentDialogueData.useTypewriter !== undefined) shouldUseTypewriter = currentDialogueData.useTypewriter;
-                
+
                 const showButtons = () => {
                     overlay.onclick = null;
                     continueIndicator.classList.add('hidden');
 
                     if (availableOptions.length > 0) {
-                        // [修改] 实现智能对齐
                         buttonsDiv.innerHTML = availableOptions.map(opt => {
                             const customAlign = opt.originalOption.textAlign;
                             const defaultAlign = isRichMode ? 'left' : 'center';
                             const finalAlign = customAlign || defaultAlign;
                             return `<button data-value='${JSON.stringify(opt.value)}' class="${opt.originalOption.class || ''}" style="text-align: ${finalAlign};">${opt.text}</button>`;
                         }).join('');
-                        
+
                         buttonsDiv.querySelectorAll('button').forEach(btn => {
                             btn.onclick = async (e) => {
                                 e.stopPropagation();
@@ -354,7 +356,7 @@
                         showButtons();
                     }
                 };
-                
+
                 const showNextSegment = () => {
                     if (game.UI.isTyping) {
                         clearTimeout(game.UI.typewriterTimeout);
@@ -373,7 +375,7 @@
                     continueIndicator.classList.add('hidden');
                     const segmentToShow = textSegments[currentSegmentIndex];
                     currentSegmentIndex++;
-                    
+
                     if (shouldUseTypewriter) {
                         game.UI.typewriter(textEl, segmentToShow, onSegmentComplete);
                     } else {
@@ -393,10 +395,10 @@
             updateModalContent(dialogueData);
             return overlay;
         },
-        
+
         createJobBoardDOM(modalConfig) {
             const { title, jobs } = modalConfig.payload;
-            
+
             let jobListHtml = '<ul class="job-list">';
             if (jobs && jobs.length > 0) {
                 jobs.forEach(job => {
@@ -418,7 +420,7 @@
                 jobListHtml += '<li><p>目前没有新的兼职信息。</p></li>';
             }
             jobListHtml += '</ul>';
-            
+
             const contentHtml = `<div class="job-board-content">${jobListHtml}</div>`;
             const actionsHtml = `<button class="custom-modal-close-btn">关闭</button>`;
             const overlay = this.createModalFrame(title, contentHtml, actionsHtml);
@@ -464,16 +466,16 @@
                     </div>
                 `;
             }
-            
+
             const actionsHtml = `
                 <button class="custom-modal-back-btn">返回列表</button>
                 <button class="custom-modal-accept-btn" ${!jobData || !requirementsMet ? 'disabled' : ''}>接受任务</button>
             `;
             const title = jobData ? jobData.title : '兼职详情';
             const overlay = this.createModalFrame(title, contentHtml, actionsHtml);
-            
+
             overlay.querySelector('.custom-modal-back-btn').onclick = () => this.pop();
-            
+
             const acceptBtn = overlay.querySelector('.custom-modal-accept-btn');
             if (acceptBtn && jobData) {
                 acceptBtn.onclick = async () => {
@@ -498,10 +500,10 @@
 
             return overlay;
         },
-        
+
         createQuestDetailsDOM(modalConfig) {
             const { jobData, questInstance, status } = modalConfig.payload;
-            
+
             let objectivesHtml = '';
             if (status === 'active' && questInstance && questInstance.objectives) {
                 objectivesHtml = `
@@ -534,7 +536,7 @@
                 element.classList.remove('is-scrollable');
                 return;
             };
-            
+
             element.classList.add('is-scrollable');
             let isDown = false, startY, scrollTop;
             const start = e => {
