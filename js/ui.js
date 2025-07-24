@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v50.0.0 - [重构] 移除flag系统，传递交互点类型)
+ * @description UI核心模块 (v51.2.0 - [修复] 修正UI刷新逻辑和事件处理)
  * @author Gemini (CTO)
- * @version 50.0.0
+ * @version 51.2.0
  */
 (function() {
     'use strict';
@@ -18,16 +18,24 @@
 
         init() {
             const dom = game.dom;
-            const ids = [
-                "left-panel", "main-content", "right-panel", "message-log", "screen", "bottom-nav",
-                "toast-container"
-            ];
+            const ids = [ "left-panel", "main-content", "right-panel", "message-log", "screen", "bottom-nav", "toast-container", "narrative-ui" ];
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) dom[id] = el;
             });
 
+            this.NarrativeManager.init();
+
             document.body.addEventListener('click', (event) => {
+                // [修复] 点击叙事UI任何非按钮区域即可跳过打字机
+                if (game.narrativeContext && !game.narrativeContext.isWaitingForChoice) {
+                    const narrativeUi = event.target.closest('#narrative-ui');
+                    const isOptionButton = event.target.closest('#narrative-options button');
+                    if (narrativeUi && !isOptionButton) {
+                        this.NarrativeManager.showNextSegment();
+                        return;
+                    }
+                }
                 const target = event.target;
                 const actionTarget = target.closest('[data-action]');
                 if (actionTarget) {
@@ -56,11 +64,8 @@
                             game.state.menu.inventoryFilter = filterTab.dataset.filter;
                             this.render();
                         }
-
-                        // [移除] 旧的装备行点击逻辑
                         const inventoryItemEntry = target.closest('.inventory-item-entry');
                         if (inventoryItemEntry && inventoryItemEntry.dataset.index) {
-                            // 阻止在按钮上触发
                             if (!target.closest('button')) {
                                 this.showItemDetails(inventoryItemEntry.dataset.index);
                             }
@@ -70,17 +75,31 @@
                     const mapNode = target.closest('.map-node');
                     if (mapNode) game.Actions.handleMapNodeClick(mapNode.dataset.id);
                 } else if (gameState.gameState === 'EXPLORE') {
-                    const hotspotCard = target.closest('.hotspot-card, .sparkle-hotspot'); // 同时监听两种类型
+                    const hotspotCard = target.closest('.hotspot-card, .sparkle-hotspot');
                     if (hotspotCard && hotspotCard.dataset.interaction) {
                         const index = parseInt(hotspotCard.dataset.index, 10);
-                        const type = hotspotCard.dataset.type; // [新增] 获取交互点类型
-                        const interactionData = JSON.parse(hotspotCard.dataset.interaction);
-                        // [修改] 传递类型
-                        game.Actions.handleInteraction(interactionData, index, type);
+                        const type = hotspotCard.dataset.type;
+                        game.Actions.handleInteraction(JSON.parse(hotspotCard.dataset.interaction), index, type);
                     }
                 }
             });
             return ids.every(id => dom[id] !== undefined );
+        },
+        
+        createFromTemplate(templateId, data) {
+            const template = document.getElementById(templateId);
+            if (!template) {
+                console.error(`Template with id ${templateId} not found.`);
+                return null;
+            }
+            const clone = template.content.cloneNode(true);
+            for (const key in data) {
+                const el = clone.querySelector(`.${key}`);
+                if (el) {
+                    el.innerHTML = data[key];
+                }
+            }
+            return clone;
         },
 
         render() {
@@ -90,6 +109,7 @@
                 const isTitle = gameState.gameState === 'TITLE';
                 dom['left-panel'].classList.toggle('hidden', isTitle);
                 dom['right-panel'].classList.toggle('hidden', isTitle);
+                // [修复] 底部菜单栏不再因叙事UI隐藏，只会被调暗
                 dom['bottom-nav'].classList.toggle('hidden', isTitle);
 
                 if (!isTitle) {
@@ -119,23 +139,13 @@
         showToast({ title, text, icon }) {
             const container = game.dom['toast-container'];
             if (!container) return;
-
             const toast = document.createElement('div');
             toast.className = 'toast-notification';
-            toast.innerHTML = `
-                <div class="toast-icon">${icon || '⭐'}</div>
-                <div class="toast-content">
-                    <strong class="toast-title">${title || ''}</strong>
-                    <span class="toast-text">${text || ''}</span>
-                </div>
-            `;
+            toast.innerHTML = `<div class="toast-icon">${icon || '⭐'}</div><div class="toast-content"><strong class="toast-title">${title || ''}</strong><span class="toast-text">${text || ''}</span></div>`;
             container.appendChild(toast);
-
             setTimeout(() => {
                 toast.classList.add('fade-out');
-                toast.addEventListener('animationend', () => {
-                    toast.remove();
-                });
+                toast.addEventListener('animationend', () => toast.remove());
             }, 3000);
         },
 
@@ -155,121 +165,73 @@
                         <div class="game-date" id="left-panel-date"></div>
                     </div>
                     <div class="resource-bars-container">
-                        <div class="resource-bar top-hp-bar" id="left-panel-hp-bar">
-                            <div class="resource-bar-fill hp-fill" id="left-panel-hp-fill"></div>
-                            <span class="resource-bar-text">健康</span>
-                        </div>
-                        <div class="resource-bar top-mp-bar" id="left-panel-mp-bar">
-                            <div class="resource-bar-fill mp-fill" id="left-panel-mp-fill"></div>
-                            <span class="resource-bar-text">精力</span>
-                        </div>
+                        <div class="resource-bar top-hp-bar" id="left-panel-hp-bar"><div class="resource-bar-fill hp-fill" id="left-panel-hp-fill"></div><span class="resource-bar-text">健康</span></div>
+                        <div class="resource-bar top-mp-bar" id="left-panel-mp-bar"><div class="resource-bar-fill mp-fill" id="left-panel-mp-fill"></div><span class="resource-bar-text">精力</span></div>
                     </div>
-                    <div class="primary-stats-bar" id="left-panel-stats"></div>
-                `;
+                    <div class="primary-stats-bar" id="left-panel-stats"></div>`;
                 const idsToCache = ['left-panel-avatar', 'left-panel-player-name', 'left-panel-gold', 'left-panel-time-container', 'left-panel-time', 'left-panel-date', 'left-panel-hp-bar', 'left-panel-mp-bar', 'left-panel-hp-fill', 'left-panel-mp-fill', 'left-panel-stats'];
                 idsToCache.forEach(id => dom[id] = document.getElementById(id));
                 this.isLeftPanelInitialized = true;
             }
             const { name, hp, maxHp, mp, maxMp, time, gold } = gameState;
-            const hpPercentage = maxHp > 0 ? (hp / maxHp) * 100 : 0;
-            const mpPercentage = maxMp > 0 ? (mp / maxMp) * 100 : 0;
             const timeString = `${gameData.settings.weekDays[new Date(time.year, time.month - 1, time.day).getDay()]} ${gameData.settings.timePhases[time.phase]}`;
-            const fullDateString = `${time.year}年${time.month}月${time.day}日`;
-            const primaryStatsHtml = Object.entries({ str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运' }).map(([key, statName]) => `<div class="primary-stat" title="${statName}">${gameData.icons[key]} ${effectiveStats[key]}</div>`).join('');
-
             dom['left-panel-avatar'].innerHTML = this.getAvatarHtml(gameState);
             dom['left-panel-player-name'].textContent = name;
             dom['left-panel-gold'].textContent = gold;
             dom['left-panel-time'].textContent = timeString;
-            dom['left-panel-date'].textContent = fullDateString;
+            dom['left-panel-date'].textContent = `${time.year}年${time.month}月${time.day}日`;
             dom['left-panel-hp-bar'].title = `健康: ${Math.ceil(hp)} / ${maxHp}`;
-            dom['left-panel-hp-fill'].style.width = hpPercentage + '%';
+            dom['left-panel-hp-fill'].style.width = (maxHp > 0 ? (hp / maxHp) * 100 : 0) + '%';
             dom['left-panel-mp-bar'].title = `精力: ${Math.ceil(mp)} / ${maxMp}`;
-            dom['left-panel-mp-fill'].style.width = mpPercentage + '%';
-            dom['left-panel-stats'].innerHTML = primaryStatsHtml;
+            dom['left-panel-mp-fill'].style.width = (maxMp > 0 ? (mp / maxMp) * 100 : 0) + '%';
+            dom['left-panel-stats'].innerHTML = Object.entries({ str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运' }).map(([key, statName]) => `<div class="primary-stat" title="${statName}">${gameData.icons[key]} ${effectiveStats[key]}</div>`).join('');
         },
 
         renderBottomNav() {
             const dom = game.dom;
             const gameState = game.State.get();
             const buttonsData = [
-                { id: "MAP", label: "地图", icon: "🗺️" },
-                { id: "STATUS", label: "状态", icon: "👤" },
-                { id: "INVENTORY", label: "物品", icon: "🎒" },
-                { id: "QUESTS", label: "任务", icon: "📜" },
-                { id: "PARTY", label: "人际", icon: "👨‍👩‍👧" },
-                { id: "SYSTEM", label: "系统", icon: "⚙️" }
+                { id: "MAP", label: "地图", icon: "🗺️" }, { id: "STATUS", label: "状态", icon: "👤" },
+                { id: "INVENTORY", label: "物品", icon: "🎒" }, { id: "QUESTS", label: "任务", icon: "📜" },
+                { id: "PARTY", label: "人际", icon: "👨‍👩‍👧" }, { id: "SYSTEM", label: "系统", icon: "⚙️" }
             ];
             if (!this.isBottomNavInitialized) {
                 dom['bottom-nav'].innerHTML = '';
-                dom.navButtons = [];
-                buttonsData.forEach(btnData => {
+                dom.navButtons = buttonsData.map(btnData => {
                     const buttonEl = document.createElement('button');
                     buttonEl.innerHTML = `<div>${btnData.icon}</div><div>${btnData.label}</div>`;
                     dom['bottom-nav'].appendChild(buttonEl);
-                    dom.navButtons.push(buttonEl);
+                    return buttonEl;
                 });
                 this.isBottomNavInitialized = true;
             }
             const isMenu = gameState.gameState === "MENU";
             const currentMenu = gameState.menu?.current;
-            const isGloballyDisabled = gameState.isCombat || gameState.gameState === 'SEQUENCE' || this.ModalManager.stack.length > 0;
+            const isGloballyDisabled = gameState.isCombat || gameState.gameState === 'SEQUENCE' || !!game.narrativeContext || this.ModalManager.stack.length > 0;
+
             dom.navButtons.forEach((buttonEl, index) => {
                 const btnData = buttonsData[index];
-                let isActive = false;
-                let actionFn = null;
-
+                let isActive = false, actionFn = null;
                 if (btnData.id === 'MAP') {
                     isActive = ['MAP', 'EXPLORE'].includes(gameState.gameState);
-                    if (isMenu) {
-                        actionFn = () => game.Actions.exitMenu();
-                    } else if (!isActive) {
-                        actionFn = () => game.Actions.showMap();
-                    }
+                    actionFn = isMenu ? () => game.Actions.exitMenu() : (isActive ? null : () => game.Actions.showMap());
                 } else {
                     isActive = isMenu && currentMenu === btnData.id;
                     actionFn = () => game.Actions.setUIMode('MENU', { screen: btnData.id });
                 }
-
                 buttonEl.className = `nav-button ${isActive ? 'active' : ''}`;
                 buttonEl.onclick = actionFn;
-                buttonEl.disabled = isGloballyDisabled || isActive;
+                buttonEl.disabled = isGloballyDisabled || (actionFn === null) || isActive;
             });
         },
 
-        updateCombatantUI(unit) {
-            const el = document.getElementById(unit.combatId);
-            if (!el) return;
-
-            if (unit.hp <= 0) {
-                el.classList.add('dead');
-            } else {
-                el.classList.remove('dead');
-            }
-        },
-
         getAvatarHtml(unit) { const id = unit ? (unit.id || 'unknown') : 'unknown'; const name = unit ? (unit.name || '未知单位') : '未知单位'; const imagePath = `images/${id}.png`; return `<img src="${imagePath}" alt="${name}" class="avatar-image" onerror="this.onerror=null; this.src='${game.DEFAULT_AVATAR_FALLBACK_IMAGE}';">`; },
-
-        createFromTemplate(templateId, data) {
-            const template = document.getElementById(templateId);
-            if (!template) {
-                console.error(`Template with id ${templateId} not found.`);
-                return null;
-            }
-            const clone = template.content.cloneNode(true);
-            for (const key in data) {
-                const el = clone.querySelector(`.${key}`);
-                if (el) {
-                    el.innerHTML = data[key];
-                }
-            }
-            return clone;
-        },
 
         typewriter(element, text, callback) {
             clearTimeout(this.typewriterTimeout);
             let i = 0;
             element.innerHTML = '';
+            this.isTyping = true;
             const type = () => {
                 if (i < text.length) {
                     element.innerHTML += text.charAt(i);
@@ -280,68 +242,54 @@
                     if (callback) callback();
                 }
             };
-            this.isTyping = true;
             type();
         },
+        
+        updateSceneBackground(imageUrl) {
+            const mapArea = game.dom.screen.querySelector('.map-area');
+            if(mapArea) {
+                mapArea.style.backgroundImage = `url('${imageUrl}')`;
+            }
+        },
 
-        showConfirmation(dialogueData) { return this.ModalManager.push(dialogueData); },
-        showMessage(text, buttonLabel = '确定') { const dialogueData = { text: text, textAlign: 'center', useTypewriter: false, options: [{ text: buttonLabel, value: true }] }; return this.showConfirmation(dialogueData); },
-        showCustomModal(title, htmlContent) { return this.ModalManager.push({ type: 'custom', title, html: htmlContent }); },
+        showNarrative(dialogueData) { return this.NarrativeManager.show(dialogueData); },
+        showConfirmation(payload) {
+             const options = payload.options || [ { text: '取消', value: false, class: 'secondary-action'}, { text: '确认', value: true } ];
+             const title = payload.title || gameData.systemMessages.systemConfirm.title;
+             const html = payload.html || `<p>${payload.text || ''}</p>`;
+             return this.ModalManager.push({ type: 'confirmation', payload: { title, html, options } });
+        },
+        showCustomModal(payload) { return this.ModalManager.push({ type: 'custom', payload }); },
+        showMessage(text) { return this.ModalManager.push({ type: 'custom', payload: { title: gameData.systemMessages.systemConfirm.title, html: `<p>${text}</p>` } }); },
         showJobBoard(payload) { return this.ModalManager.push({ type: 'job_board', payload }); },
         showJobDetails(jobId) { return this.ModalManager.push({ type: 'job_details', payload: { jobId } }); },
+        showItemDetails(inventoryIndex) {
+            const item = game.State.get().inventory[inventoryIndex];
+            if (!item) return;
+            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData: gameData.items[item.id], index: inventoryIndex }});
+        },
+        showEquippedItemDetails(itemId, slotId) {
+            const itemData = gameData.items[itemId];
+            if (!itemData) return;
+            return this.ModalManager.push({ type: 'item_details', payload: { item: { id: itemId, quantity: 1 }, itemData, isEquipped: true, slotId: slotId }});
+        },
         showQuestDetails(jobId) {
             const jobData = gameData.jobs[jobId];
             if (!jobData) return;
             const gameState = game.State.get();
             const questState = gameState.variables[jobData.questVariable] || 0;
-            const questInstance = gameState.quests[jobData.questId];
-            const status = questState === 1 ? 'active' : 'completed';
-
-            return this.ModalManager.push({ type: 'quest_details', payload: { jobData, questInstance, status } });
-        },
-        showItemDetails(inventoryIndex) {
-            const gameState = game.State.get();
-            const item = gameState.inventory[inventoryIndex];
-            if (!item) return;
-            const itemData = gameData.items[item.id];
-            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData, index: inventoryIndex }});
-        },
-        showEquippedItemDetails(itemId, slotId) {
-            const itemData = gameData.items[itemId];
-            if (!itemData) return;
-            const item = { id: itemId, quantity: 1 };
-            // [修改] 传入 slotId，用于弹窗内的卸下操作
-            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData, isEquipped: true, slotId: slotId }});
+            return this.ModalManager.push({ type: 'quest_details', payload: { jobData, questInstance: gameState.quests[jobData.questId], status: questState === 1 ? 'active' : 'completed' } });
         },
         showDropQuantityPrompt(index) {
             const itemStack = game.State.get().inventory[index];
             const itemData = gameData.items[itemStack.id];
             if (!itemData) return;
-
             const onConfirm = (quantity) => {
-                const state = game.State.get();
-                const currentItemStack = state.inventory[index];
-                if (!currentItemStack || currentItemStack.id !== itemStack.id) {
-                    return;
-                }
-                const clampedQuantity = Math.max(0, Math.min(quantity, currentItemStack.quantity));
-                if (clampedQuantity <= 0) return;
-                currentItemStack.quantity -= clampedQuantity;
-                if (currentItemStack.quantity <= 0) {
-                    state.inventory.splice(index, 1);
-                }
-                this.log(game.Utils.formatMessage('itemDropped', { itemName: itemData.name, quantity: clampedQuantity }));
+                // [修复] 调用正确的 action
+                game.Actions.removeItemByIndex(index, quantity);
                 this.render();
             };
-
-            this.ModalManager.push({
-                type: 'quantity_prompt',
-                payload: {
-                    title: `丢弃多少${itemData.name}？`,
-                    max: itemStack.quantity,
-                    onConfirm: onConfirm
-                }
-            });
+            this.ModalManager.push({ type: 'quantity_prompt', payload: { title: `丢弃多少${itemData.name}？`, max: itemStack.quantity, onConfirm } });
         }
     };
 

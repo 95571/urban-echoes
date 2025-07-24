@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 (v49.3.0 - [重构] 装备栏UI改为单行紧凑布局)
+ * @description 游戏样式表 (v51.2.0 - [修复] 修正叙事UI选项定位及底部菜单栏消失问题)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -48,6 +48,15 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
     overflow: hidden;
     position: relative;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+#left-panel, #right-panel, #bottom-nav {
+    transition: filter 0.3s ease-in-out;
+}
+
+#left-panel.dimmed, #right-panel.dimmed, #bottom-nav.dimmed {
+    filter: brightness(0.6);
+    pointer-events: none;
 }
 
 #left-panel {
@@ -169,6 +178,7 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
     gap: 8px;
     padding: 10px;
     background-color: var(--panel-color);
+    transition: filter 0.3s ease-in-out;
 }
 
 .nav-button {
@@ -217,6 +227,7 @@ button:active:not(:disabled) {
 button:disabled { background-color: #bbb; color: #777; cursor: not-allowed; border-color: #999; filter: grayscale(50%); }
 
 .danger-button { background-color: var(--error-color); color: var(--text-on-primary-color); }
+.secondary-action { background-color: var(--panel-color); color: var(--text-color); border: 1px solid var(--border-color); }
 h2 { color: var(--primary-color); margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); font-size: 1.2em; }
 h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dotted var(--border-color); padding-bottom: 5px; }
 .back-button { background-color: var(--panel-color); color: var(--text-color); border-color: var(--border-color); margin-bottom: 15px; }
@@ -232,6 +243,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     background-position: center;
     display: flex;
     flex-direction: column;
+    transition: background-image 0.5s ease-in-out;
 }
 
 .hotspot-container {
@@ -281,7 +293,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     width: 130px;
     height: 160px;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.3s ease;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -338,6 +350,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: opacity 0.3s ease;
 }
 
 .sparkle-core {
@@ -385,45 +398,22 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     border-radius: 1px;
 }
 
-@keyframes sparkle-fade-in {
-    from {
-        transform: scale(0);
-        opacity: 0;
-    }
-    to {
-        transform: scale(var(--anim-scale-min, 0.8));
-        opacity: 0.9;
-    }
-}
-
-@keyframes sparkle-breathing {
-    0%, 100% {
-        transform: scale(var(--anim-scale-min, 0.8));
-        opacity: 0.9;
-    }
-    50% {
-        transform: scale(var(--anim-scale-max, 1.2));
-        opacity: 1;
-    }
-}
-
 .menu-screen { padding: 15px; overflow-y: auto; height: 100%; display: flex; flex-direction: column; position: relative; background: var(--bg-color); }
 .menu-list { list-style: none; padding: 0; }
 .menu-list li { background-color: var(--surface-color); padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--primary-color); }
 
-/* --- [重构] 装备网格布局 - 单行紧凑版 --- */
 .equipped-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr); /* 六列布局 */
-    gap: 6px; /* 更小的间距 */
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
     margin-bottom: 15px;
 }
 
 .equipped-slot-card {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
-    border-radius: 6px; /* 更小的圆角 */
-    padding: 5px; /* 更小的内边距 */
+    border-radius: 6px;
+    padding: 5px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -432,45 +422,39 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     cursor: pointer;
     transition: background-color 0.2s, box-shadow 0.2s;
 }
-
 .equipped-slot-card:hover {
     background-color: var(--panel-color);
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-
 .equipped-slot-card .slot-icon {
     width: 100%;
-    padding-top: 100%; /* 保持方形 */
+    padding-top: 100%;
     height: 0;
     background-color: var(--bg-color);
-    border-radius: 4px; /* 更小的圆角 */
+    border-radius: 4px;
     margin-bottom: 4px;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
     image-rendering: pixelated;
 }
-
 .equipped-slot-card .slot-item-name {
-    font-size: 0.75em; /* 装备名非常小 */
+    font-size: 0.75em;
     color: var(--text-muted-color);
     font-weight: 500;
     line-height: 1.2;
-    height: 1.2em; /* 固定单行高度 */
+    height: 1.2em;
     width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
 .equipped-slot-card .slot-type-name {
-    font-size: 0.8em; /* 部位名称稍大 */
+    font-size: 0.8em;
     font-weight: 500;
     color: var(--text-color);
     margin-top: 2px;
 }
-/* --- 结束：装备网格布局重构 --- */
-
 
 .inventory-item-entry {
     display: flex;
@@ -506,7 +490,6 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
 .item-details-info p { font-size: 0.9em; color: var(--text-muted-color); margin: 0; line-height: 1.6; }
 .item-details-effects { margin-top: 15px; grid-column: 1 / -1; }
 .item-details-effects h4 { margin-top: 0; }
-
 .item-details-effects-list { background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; height: calc(1.6em * 3 + 18px); overflow-y: auto; font-size: 0.9em; line-height: 1.6; }
 .item-details-effects-list p { margin: 0; padding: 0; color: var(--text-muted-color); }
 .item-details-effects-list.is-scrollable { cursor: grab; }
@@ -588,78 +571,155 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .sequence-answers button { width: 100%; text-align: center; font-weight: 500; }
 .sequence-answers input { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 10px; border-radius: 4px; width: 100%; text-align: center; font-size: 1.1em; }
 
-.modal-overlay {
+.custom-modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background-color: rgba(50, 40, 30, 0.7);
     display: flex; justify-content: center; align-items: center;
-    opacity: 0; transition: opacity 0.1s ease-in-out;
+    opacity: 0; transition: opacity 0.2s ease-in-out;
     pointer-events: none; backdrop-filter: blur(2px);
-    z-index: 1000;
+    z-index: 1100;
 }
-.modal-overlay.visible { opacity: 1; pointer-events: all; }
+.custom-modal-overlay.visible { opacity: 1; pointer-events: all; }
 
-.modal-box {
+.custom-modal-box {
     background-color: var(--surface-color); padding: 0; border-radius: 12px;
     border: 1px solid var(--border-color); box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    width: 90%; max-width: 420px;
-    transform: scale(0.95); transition: transform 0.1s ease-in-out;
-    display: flex; flex-direction: column; max-height: 85vh; overflow: hidden;
+    width: 90%; max-width: 480px;
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+    opacity: 0;
+    display: flex; flex-direction: column; max-height: 85vh;
 }
-.modal-overlay.visible .modal-box { transform: scale(1); }
+.custom-modal-overlay.visible .custom-modal-box {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+.custom-modal-title {
+    padding: 12px 20px; margin: 0; font-size: 1.2em; color: var(--primary-color);
+    border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+}
+.custom-modal-content {
+    padding: 20px; overflow-y: auto; flex-grow: 1; line-height: 1.7;
+}
+.custom-modal-actions {
+    padding: 15px 20px; border-top: 1px solid var(--border-color);
+    display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background-color: rgba(0,0,0,0.02);
+}
+.custom-modal-content .save-slot-list li { background-color: var(--bg-color); }
 
-.modal-image-container { width: 100%; height: 240px; background-size: cover; background-position: center; position: relative; flex-shrink: 0; border-bottom: 1px solid var(--border-color); }
-.modal-image-title { position: absolute; bottom: 0; left: 0; width: 100%; padding: 8px 15px; background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0)); color: var(--text-on-primary-color); font-size: 1.2em; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); }
-.modal-text-container { position: relative; padding: 15px 20px; }
-.modal-text { font-size: 1.0em; line-height: 1.6; color: var(--text-color); text-align: left; margin: 0; padding: 0; transition: height 0.2s ease-out; }
-.modal-text strong { color: var(--primary-color); }
-.modal-text-container.rich-dialogue { cursor: pointer; }
-.modal-text-container.rich-dialogue .modal-text { height: calc(1.6em * 3); overflow: hidden; }
-.modal-continue-indicator { position: absolute; bottom: 5px; right: 15px; font-size: 1.2em; color: var(--text-muted-color); animation: bounce 1.5s infinite; }
+/* --- [修正] 叙事UI (Narrative UI) --- */
+#narrative-ui {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0; /* 改为全屏覆盖 */
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease-out;
+}
+#narrative-ui.visible {
+    opacity: 1;
+    pointer-events: all; /* 显示时整体可交互 */
+}
 
-.modal-buttons-container {
-    padding: 0 20px 20px 20px;
-    border-top: 1px solid var(--border-color);
+.narrative-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    transform: translateY(100%);
+    transition: transform 0.4s ease-out;
+    pointer-events: none; /* 包装器不可交互 */
+}
+#narrative-ui.visible .narrative-wrapper {
+    transform: translateY(0);
+}
+.narrative-wrapper > * {
+    pointer-events: all; /* 子元素可交互 */
+}
+
+#narrative-avatar {
+    width: 140px;
+    height: 140px;
     flex-shrink: 0;
-    height: 180px;
-    overflow-y: auto;
+    border-radius: 50%;
+    background-color: var(--bg-color);
+    border: 4px solid var(--surface-color);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    background-size: cover;
+    background-position: center;
+    transition: transform 0.3s ease-in-out, background-image 0.3s ease-in-out;
+}
+#narrative-avatar.active {
+    transform: scale(1.05);
+}
+#narrative-box {
+    flex-grow: 1;
+    min-height: 150px;
+    background-color: rgba(245, 240, 230, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    padding: 20px 25px;
     display: flex;
     flex-direction: column;
+    position: relative;
+    cursor: pointer;
 }
-.modal-buttons {
+#narrative-name {
+    background-color: var(--primary-color);
+    color: var(--text-on-primary-color);
+    position: absolute;
+    top: -18px;
+    left: 20px;
+    padding: 4px 15px;
+    border-radius: 15px;
+    font-size: 1.1em;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+#narrative-text {
+    margin-top: 15px;
+    font-size: 1.1em;
+    line-height: 1.7;
+    color: var(--text-color);
+    flex-grow: 1;
+}
+#narrative-continue-indicator {
+    position: absolute;
+    bottom: 10px; right: 20px;
+    font-size: 1.4em; color: var(--text-muted-color);
+    animation: bounce 1.5s infinite;
+}
+#narrative-options {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding-top: 15px;
-    margin: auto 0;
+    gap: 15px;
+    width: 90%;
+    max-width: 450px;
+    z-index: 1001;
+    pointer-events: all;
 }
-.modal-buttons button { width: 100%; text-align: left; flex-shrink: 0; }
-.modal-buttons .secondary-action { background-color: var(--panel-color); color: var(--text-color); border: 1px solid var(--border-color); }
-.map-screen { position: relative; width: 100%; height: 100%; background: linear-gradient(to bottom, #e9f0f5, #d9e2e8); overflow: hidden; }
-.map-line { position: absolute; height: 3px; background-color: #aab8c2; transform-origin: 0 50%; z-index: 5; }
-.map-node { position: absolute; width: 50px; height: 50px; background-color: #ffffff; border: 2px solid #aab8c2; border-radius: 50%; color: var(--primary-color); display: flex; justify-content: center; align-items: center; font-size: 24px; transform: translate(-50%, -50%); transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; cursor: pointer; }
-.map-node:hover { border-color: var(--primary-color); transform: translate(-50%, -50%) scale(1.1); }
-.map-node.current { border-color: var(--success-color); box-shadow: 0 0 12px var(--success-color); }
-.map-node.inactive { filter: grayscale(80%); opacity: 0.7; cursor: not-allowed; background-color: #e0e0e0; }
-.node-label { position: absolute; bottom: -22px; width: 120px; text-align: center; font-size: 0.8em; font-weight: 500; color: #444; pointer-events: none; background: rgba(255,255,255,0.6); border-radius: 4px; padding: 1px 0; }
+#narrative-options button {
+    width: 100%;
+    padding: 15px 20px;
+    font-size: 1.05em;
+    text-align: center;
+    background-color: rgba(58, 91, 146, 0.9);
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    backdrop-filter: blur(5px);
+}
 
-.title-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; height: 100%; background: linear-gradient(to bottom, var(--surface-color), var(--bg-color)); padding: 20px; }
-.title-content { animation: fadeIn 1s ease-in-out; }
-.game-title { font-family: 'Lora', serif; font-size: 3em; color: var(--primary-color); margin: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
-.game-subtitle { font-family: 'Lora', serif; font-size: 1.2em; color: var(--text-muted-color); margin-bottom: 40px; }
-.title-buttons { display: flex; flex-direction: column; gap: 15px; width: 240px; }
-.title-buttons button { width: 100%; font-size: 1.1em; padding: 12px; }
-
-.custom-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(50, 40, 30, 0.7); display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.1s ease-in-out; pointer-events: none; backdrop-filter: blur(2px); z-index: 1100; }
-.custom-modal-overlay.visible { opacity: 1; pointer-events: all; }
-.custom-modal-box { background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px; transform: scale(0.95); transition: transform 0.1s ease-in-out; display: flex; flex-direction: column; max-height: 80vh; }
-.custom-modal-overlay.visible .custom-modal-box { transform: scale(1); }
-.custom-modal-title { padding: 15px 20px; margin: 0; font-size: 1.2em; color: var(--primary-color); border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
-.custom-modal-content { padding: 20px; overflow-y: auto; flex-grow: 1; }
-.custom-modal-actions { padding: 15px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
-
-.save-slot-list { list-style: none; padding: 0; margin: 0; }
 .save-slot-list li { background-color: var(--bg-color); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--secondary-color); }
-
 .job-board-content { display: flex; flex-direction: column; gap: 15px; }
 .job-list { list-style: none; padding: 0; margin: 0; height: 350px; overflow-y: auto; padding-right: 5px; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); background: var(--bg-color); }
 .job-list.is-scrollable { cursor: grab; }
@@ -669,7 +729,6 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .job-item h4 { margin: 0 0 5px 0; padding: 0; border: none; color: var(--primary-color); font-size: 1.05em; }
 .job-item p { margin: 0; font-size: 0.85em; color: var(--text-muted-color); line-height: 1.5; }
 .job-item .job-reward { font-weight: bold; color: #b5651d; }
-
 .job-details-content { line-height: 1.7; font-size: 0.95em; }
 .job-details-content h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dotted var(--border-color); padding-bottom: 5px; }
 .job-details-content p { margin-bottom: 10px; }
@@ -700,6 +759,22 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .toast-title { font-weight: 700; font-size: 1em; }
 .toast-text { font-size: 0.9em; opacity: 0.9; }
 
+.map-screen { position: relative; width: 100%; height: 100%; background: linear-gradient(to bottom, #e9f0f5, #d9e2e8); overflow: hidden; }
+.map-line { position: absolute; height: 3px; background-color: #aab8c2; transform-origin: 0 50%; z-index: 5; }
+.map-node { position: absolute; width: 50px; height: 50px; background-color: #ffffff; border: 2px solid #aab8c2; border-radius: 50%; color: var(--primary-color); display: flex; justify-content: center; align-items: center; font-size: 24px; transform: translate(-50%, -50%); transition: all 0.3s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.1); z-index: 10; cursor: pointer; }
+.map-node:hover { border-color: var(--primary-color); transform: translate(-50%, -50%) scale(1.1); }
+.map-node.current { border-color: var(--success-color); box-shadow: 0 0 12px var(--success-color); }
+.map-node.inactive { filter: grayscale(80%); opacity: 0.7; cursor: not-allowed; background-color: #e0e0e0; }
+.node-label { position: absolute; bottom: -22px; width: 120px; text-align: center; font-size: 0.8em; font-weight: 500; color: #444; pointer-events: none; background: rgba(255,255,255,0.6); border-radius: 4px; padding: 1px 0; }
+.title-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; height: 100%; background: linear-gradient(to bottom, var(--surface-color), var(--bg-color)); padding: 20px; }
+.title-content { animation: fadeIn 1s ease-in-out; }
+.game-title { font-family: 'Lora', serif; font-size: 3em; color: var(--primary-color); margin: 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+.game-subtitle { font-family: 'Lora', serif; font-size: 1.2em; color: var(--text-muted-color); margin-bottom: 40px; }
+.title-buttons { display: flex; flex-direction: column; gap: 15px; width: 240px; }
+.title-buttons button { width: 100%; font-size: 1.1em; padding: 12px; }
+
+@keyframes sparkle-fade-in { from { transform: scale(0); opacity: 0; } to { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } }
+@keyframes sparkle-breathing { 0%, 100% { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } 50% { transform: scale(var(--anim-scale-max, 1.2)); opacity: 1; } }
 @keyframes toast-fade-in { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes toast-fade-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-20px); } }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
@@ -707,4 +782,3 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 @keyframes combat-attack-animation { 0% { transform: translateY(0); } 50% { transform: translateY(20px); } 100% { transform: translateY(0); } }
 @keyframes damage-popup-animation { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-40px); } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes scaleIn { from { transform: scale(0.95); } to { transform: scale(1); } }

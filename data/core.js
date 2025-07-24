@@ -1,6 +1,6 @@
 /**
  * @file data/core.js
- * @description 游戏内容 - 核心设定
+ * @description 游戏内容 - 核心设定 (v51.0.0 - [重构] 引入叙事UI)
  */
 window.gameData.icons = { 
     str: '💪', dex: '🤸', int: '🧠', con: '❤️', lck: '🍀', 
@@ -18,7 +18,9 @@ window.gameData.settings = {
     travelTime: {
         'bus_long_distance': 4,
         'bus_short_distance': 1
-    }
+    },
+    // [新增] 叙事UI触发时，场景是否应用模糊效果
+    narrativeUiSceneBlur: false 
 };
 window.gameData.screenTitles = {
     "TITLE": "都市回响", 
@@ -31,16 +33,35 @@ window.gameData.formulas_primary = {
     attack: 'str * 2', defense: 'con * 1', spd: '10 + dex',
 };
 window.gameData.systemMessages = {
+    // --- [重构] 为新的自定义弹窗补充标题和默认文本 ---
     achievementsContent: {
         title: "成就殿堂",
-        text: "此功能正在开发中，敬请期待您在杭城中的每一个高光时刻被铭记。",
-        options: [{text: '关闭', value: true}]
+        html: "<p>此功能正在开发中，敬请期待您在杭城中的每一个高光时刻被铭记。</p>",
     },
     aboutContent: {
         title: "关于《都市回响》",
-        text: "<strong>创意总监:</strong> [您的名字]<br><strong>首席产品/技术:</strong> Gemini<br><br>这是一款我们共同构筑的，关于在现代都市中探索、成长与生活的故事模拟器。<br><br>特别鸣谢每一位体验这个世界的玩家。",
-        options: [{text: '关闭', value: true}]
+        html: "<p><strong>创意总监:</strong> [您的名字]<br><strong>首席产品/技术:</strong> Gemini</p><p>这是一款我们共同构筑的，关于在现代都市中探索、成长与生活的故事模拟器。</p><p>特别鸣谢每一位体验这个世界的玩家。</p>",
     },
+    systemConfirm: {
+        title: "系统提示"
+    },
+    overwriteSave: {
+        title: "覆盖存档",
+        html: "此操作将覆盖当前存档槽中的数据，是否继续？"
+    },
+    loadConfirm: {
+        title: "读取游戏",
+        html: "加载新存档将覆盖当前未保存的进度，确定要继续吗？"
+    },
+    resetConfirm: {
+        title: "重置游戏",
+        html: "【危险操作】此操作将删除所有本地存档和游戏设置，且无法恢复。您确定要彻底重置游戏吗？"
+    },
+    dropItemConfirm: {
+        title: "丢弃物品",
+        html: "你确定要丢弃这个物品吗？"
+    },
+    // --- 结束: 弹窗内容重构 ---
     errorNotFound: "错误：找不到 ${target}",
     errorRender: "渲染时发生致命错误，详情请见控制台。",
     errorStateRenderer: "未找到状态 ${gameState} 的渲染器。",

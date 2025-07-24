@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v50.0.0 - [重构] 移除flag系统)
+ * @description 动作模块 - ActionBlock执行器 (v51.0.0 - [新增] 叙事UI控制动作)
  */
 (function() {
     'use strict';
@@ -21,8 +21,7 @@
 
     const actionHandlers = {
         log({ text, color }) { game.UI.log(text, color); },
-        showMessage({ text, button }) { return game.UI.showMessage(text, button); },
-        show_dialogue(payload) { return game.UI.showConfirmation(payload); },
+        show_dialogue(payload) { return game.UI.showNarrative(payload); }, // [修改] 改为调用新叙事UI
         effect(payload) { game.State.applyEffect(payload); },
         show_toast(payload) { game.UI.showToast(payload); },
         action(payload) {
@@ -34,19 +33,12 @@
                 game.UI.log(`错误：未知的动作块动作ID "${id}"`, 'var(--error-color)');
             }
         },
-        // [移除] set_flag 动作
-        // set_flag(payload) { ... }
-        
-        // [修改] destroy_hotspot 重构为 destroy_scene_element
         destroy_scene_element() {
             if (game.currentHotspotContext) {
                 const { locationId, hotspotIndex, hotspotType } = game.currentHotspotContext;
                 const keyPrefix = hotspotType === 'discovery' ? 'discovery' : 'hotspot';
                 const varId = `${keyPrefix}_destroyed_${locationId}_${hotspotIndex}`;
-                
-                // 使用 modify_variable 来设置变量
                 this.modify_variable({ varId: varId, operation: 'set', value: 1 });
-                
                 if (game.State.get().gameState === 'EXPLORE') {
                     game.UI.render();
                 }
@@ -190,6 +182,15 @@
             if (gameState.gameState === 'MENU' && gameState.menu.current === 'QUESTS') {
                 game.UI.render();
             }
+        },
+        // [新增] 叙事UI原子动作
+        change_avatar({ imageUrl }) {
+            if (game.narrativeContext) {
+                game.UI.NarrativeManager.updateAvatar(imageUrl);
+            }
+        },
+        change_scene_bg({ imageUrl }) {
+            game.UI.updateSceneBackground(imageUrl);
         }
     };
 

@@ -1,6 +1,6 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v50.0.0 - [重构] 移除flag系统)
+ * @description 动作模块 - 场景与对话交互 (v51.0.0 - [重构] 对接新叙事UI)
  */
 (function() {
     'use strict';
@@ -91,11 +91,10 @@
         },
 
         async handleInteraction(spotData, index, type) {
-            // [修改] 增加 type 参数，用于区分 'hotspot' 和 'discovery'
             game.currentHotspotContext = {
                 locationId: game.State.get().currentLocationId,
                 hotspotIndex: index,
-                hotspotType: type // [新增]
+                hotspotType: type
             };
             if (!game.ConditionChecker.evaluate(spotData.conditions)) {
                 game.currentHotspotContext = null;
@@ -110,7 +109,7 @@
 
             const interactionHandlers = {
                 async interactive_dialogue(payload) {
-                    if (payload) await game.UI.showConfirmation(payload);
+                    if (payload) await game.UI.showNarrative(payload);
                 },
                 async combat(payload) {
                     if (payload) game.Combat.start(payload);
@@ -135,7 +134,6 @@
 
             gameState.currentMapNodeId = mapNodeId;
 
-            // 地图节点统一视为 'map_node' 类型
             await this.handleInteraction(nodeData, -1, 'map_node');
         },
     });
