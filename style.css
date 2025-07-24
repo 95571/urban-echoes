@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 (v49.0.0 - [重构] 闪光点系统V2，支持完整动画流程与条件)
+ * @description 游戏样式表 (v49.3.0 - [重构] 装备栏UI改为单行紧凑布局)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -31,7 +31,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background-color: #2f2a24; font-family: var(--font-family); color: var(--text-color); overscroll-behavior: none; }
 
-button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-entry, .skill-list-entry, .inventory-item-entry {
+button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-entry, .skill-list-entry, .inventory-item-entry, .equipped-slot-card {
     -webkit-tap-highlight-color: transparent;
     outline: none;
 }
@@ -345,19 +345,16 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     height: 1px;
     background-color: transparent;
     position: relative;
-    /* [修改] 默认无动画，由JS添加class来触发 */
     opacity: 0;
     transform: scale(0);
 }
 
-/* [新增] 控制激活（出现）动画的类 */
 .sparkle-core.activating {
     animation-name: sparkle-fade-in;
     animation-duration: var(--anim-fade-in-duration, 1s);
-    animation-fill-mode: forwards; /* 动画结束后保持在最后一帧 */
+    animation-fill-mode: forwards;
 }
 
-/* [新增] 控制呼吸（循环）动画的类 */
 .sparkle-core.breathing {
     animation-name: sparkle-breathing;
     animation-duration: var(--anim-period, 2.5s);
@@ -371,7 +368,6 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     top: 50%;
     transform-origin: center center;
     transform: translate(-50%, -50%);
-    /* [美化] 使用自定义颜色，并增加滤镜使其更亮 */
     background-color: var(--sparkle-color-instance, var(--sparkle-color));
     box-shadow: 0 0 calc(8px * var(--anim-brightness, 1)) var(--sparkle-color-instance, var(--sparkle-color));
     filter: brightness(1.5);
@@ -379,17 +375,16 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
 
 .sparkle-core::before {
     width: 2px;
-    height: 16px; /* 略微加长 */
+    height: 16px;
     border-radius: 1px;
 }
 
 .sparkle-core::after {
-    width: 16px; /* 略微加长 */
+    width: 16px;
     height: 2px;
     border-radius: 1px;
 }
 
-/* [新增] 激活（出现）动画 */
 @keyframes sparkle-fade-in {
     from {
         transform: scale(0);
@@ -401,7 +396,6 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     }
 }
 
-/* [修改] 呼吸动画 */
 @keyframes sparkle-breathing {
     0%, 100% {
         transform: scale(var(--anim-scale-min, 0.8));
@@ -415,16 +409,86 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
 
 .menu-screen { padding: 15px; overflow-y: auto; height: 100%; display: flex; flex-direction: column; position: relative; background: var(--bg-color); }
 .menu-list { list-style: none; padding: 0; }
-.menu-list li { background-color: var(--surface-color); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--primary-color); }
+.menu-list li { background-color: var(--surface-color); padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--primary-color); }
 
-.equipped-item-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; padding: 0 !important; cursor: pointer; }
-.equipped-item-row > span { padding: 10px 0; }
-.equipped-item-row .item-slot-name { padding-left: 12px; }
-.equipped-item-row .equipped-item-name { text-align: center; color: var(--text-color); font-weight: 500; }
-.equipped-item-row .item-actions { padding-right: 12px; }
+/* --- [重构] 装备网格布局 - 单行紧凑版 --- */
+.equipped-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); /* 六列布局 */
+    gap: 6px; /* 更小的间距 */
+    margin-bottom: 15px;
+}
 
-.inventory-item-entry { display: flex; flex: 1; align-items: center; justify-content: space-between; }
+.equipped-slot-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px; /* 更小的圆角 */
+    padding: 5px; /* 更小的内边距 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.equipped-slot-card:hover {
+    background-color: var(--panel-color);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.equipped-slot-card .slot-icon {
+    width: 100%;
+    padding-top: 100%; /* 保持方形 */
+    height: 0;
+    background-color: var(--bg-color);
+    border-radius: 4px; /* 更小的圆角 */
+    margin-bottom: 4px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    image-rendering: pixelated;
+}
+
+.equipped-slot-card .slot-item-name {
+    font-size: 0.75em; /* 装备名非常小 */
+    color: var(--text-muted-color);
+    font-weight: 500;
+    line-height: 1.2;
+    height: 1.2em; /* 固定单行高度 */
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.equipped-slot-card .slot-type-name {
+    font-size: 0.8em; /* 部位名称稍大 */
+    font-weight: 500;
+    color: var(--text-color);
+    margin-top: 2px;
+}
+/* --- 结束：装备网格布局重构 --- */
+
+
+.inventory-item-entry {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+}
 .inventory-item-entry[data-index] { cursor: pointer; }
+.item-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+}
 
 .item-actions { display: flex; gap: 5px; }
 .item-actions button { font-size: 1em; padding: 5px 8px; border-radius: 6px; line-height: 1; }

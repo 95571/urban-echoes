@@ -57,17 +57,13 @@
                             this.render();
                         }
 
-                        const equippedItemRow = target.closest('.equipped-item-row');
-                        if (equippedItemRow && equippedItemRow.dataset.itemId) {
-                            if (!target.closest('button')) {
-                                this.showEquippedItemDetails(equippedItemRow.dataset.itemId);
-                            }
-                            return;
-                        }
-
+                        // [移除] 旧的装备行点击逻辑
                         const inventoryItemEntry = target.closest('.inventory-item-entry');
                         if (inventoryItemEntry && inventoryItemEntry.dataset.index) {
-                            this.showItemDetails(inventoryItemEntry.dataset.index);
+                            // 阻止在按钮上触发
+                            if (!target.closest('button')) {
+                                this.showItemDetails(inventoryItemEntry.dataset.index);
+                            }
                         }
                     }
                 } else if (gameState.gameState === 'MAP') {
@@ -310,11 +306,12 @@
             const itemData = gameData.items[item.id];
             return this.ModalManager.push({ type: 'item_details', payload: { item, itemData, index: inventoryIndex }});
         },
-        showEquippedItemDetails(itemId) {
+        showEquippedItemDetails(itemId, slotId) {
             const itemData = gameData.items[itemId];
             if (!itemData) return;
             const item = { id: itemId, quantity: 1 };
-            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData, isEquipped: true }});
+            // [修改] 传入 slotId，用于弹窗内的卸下操作
+            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData, isEquipped: true, slotId: slotId }});
         },
         showDropQuantityPrompt(index) {
             const itemStack = game.State.get().inventory[index];

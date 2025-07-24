@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 弹窗管理器 (v43.1.0 - [修复] 移除已装备物品弹窗的按钮)
+ * @description UI模块 - 弹窗管理器 (v49.2.0 - [优化] 装备详情弹窗增加卸下按钮)
  * @author Gemini (CTO)
- * @version 43.1.0
+ * @version 49.2.0
  */
 (function() {
     'use strict';
@@ -155,7 +155,6 @@
             const box = document.createElement('div');
             box.className = 'custom-modal-box';
 
-            // [修改] 仅在提供了actionsHtml时才渲染按钮容器
             box.innerHTML = `
                 <h3 class="custom-modal-title">${title}</h3>
                 <div class="custom-modal-content">${contentHtml}</div>
@@ -178,7 +177,6 @@
 
             const overlay = this.createModalFrame(title, contentHtml, actionsHtml);
 
-            // 如果按钮存在，则添加事件
             const closeBtn = overlay.querySelector('.custom-modal-close-btn');
             if (closeBtn) {
                 closeBtn.onclick = () => this.pop();
@@ -188,7 +186,7 @@
         },
 
         createItemDetailsDOM(modalConfig) {
-            const { item, itemData, index, isEquipped } = modalConfig.payload;
+            const { item, itemData, index, isEquipped, slotId } = modalConfig.payload;
 
             const effectsHtml = `
                 <div class="item-details-effects">
@@ -203,7 +201,7 @@
                 <div class="item-details-content">
                     <div class="item-details-image" style="background-image: url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')"></div>
                     <div class="item-details-info">
-                        <h4>${itemData.name} &times;${item.quantity}</h4>
+                        <h4>${itemData.name}${item.quantity > 1 ? ` &times;${item.quantity}`: ''}</h4>
                         <p>${itemData.description}</p>
                     </div>
                     ${effectsHtml}
@@ -211,14 +209,16 @@
             `;
 
             let actionsHtml = '';
-            if (!isEquipped) {
+            if (isEquipped) {
+                // [修改] 为已装备物品显示“卸下”按钮
+                actionsHtml = `<button data-action="unequipItem" data-slot="${slotId}">卸下</button>`;
+            } else {
                 if (itemData.type === 'consumable') actionsHtml += `<button data-action="useItem" data-index="${index}">使用</button>`;
                 if (itemData.slot) actionsHtml += `<button data-action="equipItem" data-index="${index}">装备</button>`;
                 actionsHtml += `<button class="danger-button" data-action="dropItem" data-index="${index}">丢弃</button>`;
-            } else {
-                // [修复] 已装备物品的详情弹窗，不显示任何按钮
-                actionsHtml = '';
             }
+            // 添加一个通用的关闭按钮
+            actionsHtml += `<button class="secondary-action custom-modal-close-btn">关闭</button>`;
 
             const overlay = this.createModalFrame('物品详情', contentHtml, actionsHtml);
 
@@ -227,11 +227,18 @@
                 this.makeListDraggable(effectsListEl);
             }
 
+            // [修改] 让所有带动作的按钮都能关闭弹窗
             overlay.querySelectorAll('[data-action]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     this.hideAll();
                 });
             });
+            
+            // 为手动添加的关闭按钮也绑定事件
+            const closeBtn = overlay.querySelector('.custom-modal-close-btn');
+            if(closeBtn) {
+                 closeBtn.onclick = () => this.pop();
+            }
 
             return overlay;
         },

@@ -1,8 +1,8 @@
 /**
  * @file js/ui_menus.js
- * @description UI模块 - 菜单渲染器 (v44.1.0 - [修复] 修正装备栏布局与交互)
+ * @description UI模块 - 菜单渲染器 (v49.3.0 - [重构] 装备栏UI改为单行紧凑布局)
  * @author Gemini (CTO)
- * @version 44.1.0
+ * @version 49.3.0
  */
 (function() {
     'use strict';
@@ -149,25 +149,26 @@
 
         INVENTORY(container) {
             const gameState = game.State.get();
-            let equippedHtml = '<h4>装备中</h4><ul id="equipped-list" class="menu-list">';
+            let equippedHtml = '<h4>装备中</h4><div id="equipped-grid" class="equipped-grid">';
 
             for (const slotId in gameState.equipped) {
                 const slot = gameState.equipped[slotId];
-                const item = slot.itemId ? gameData.items[slot.itemId] : null;
-                const unequipButton = item ? `<button data-action="unequipItem" data-slot="${slotId}">卸下</button>` : '';
+                const itemData = slot.itemId ? gameData.items[slot.itemId] : null;
 
-                // [修复] 应用 .equipped-item-row 样式，并为li添加data-item-id，使其可被点击
+                const cardClickHandler = itemData
+                    ? `onclick="game.UI.showEquippedItemDetails('${slot.itemId}', '${slotId}')"`
+                    : '';
+
                 equippedHtml += `
-                    <li class="equipped-item-row" ${item ? `data-item-id="${slot.itemId}"` : ''}>
-                        <span class="item-slot-name">${slot.name}</span>
-                        <span class="equipped-item-name">${item ? item.name : '[空]'}</span>
-                        <div class="item-actions">
-                           ${unequipButton}
-                        </div>
-                    </li>
+                    <div class="equipped-slot-card" ${cardClickHandler}>
+                        <div class="slot-icon" style="background-image: url('${itemData ? itemData.imageUrl : ''}')"></div>
+                        <div class="slot-item-name">${itemData ? itemData.name : '无'}</div>
+                        <div class="slot-type-name">${slot.name}</div>
+                    </div>
                 `;
             }
-            equippedHtml += `</ul>`;
+            equippedHtml += `</div>`;
+
 
             const filters = ['全部', '装备', '消耗品', '材料', '重要'];
             const currentFilter = gameState.menu.inventoryFilter || '全部';
@@ -197,7 +198,12 @@
             if (filteredInventory && filteredInventory.length > 0) {
                  filteredInventory.forEach(item => {
                     const itemData = gameData.items[item.id];
-                    const clone = game.UI.createFromTemplate('template-inventory-item', { 'item-name-quantity': `${itemData.name} x${item.quantity}` });
+                    const clone = game.UI.createFromTemplate('template-inventory-item', {
+                        'item-name-quantity': `${itemData.name} x${item.quantity}`
+                    });
+
+                    const iconDiv = clone.querySelector('.item-icon');
+                    iconDiv.style.backgroundImage = `url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')`;
 
                     const entry = clone.querySelector('.inventory-item-entry');
                     entry.dataset.index = item.originalIndex;
