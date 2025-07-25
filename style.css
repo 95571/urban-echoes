@@ -154,16 +154,15 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
 /* --- [新增] 滚动信息系统样式 --- */
 #scrolling-log-container {
     position: absolute;
-    bottom: 65px; /* 放置在底部导航栏上方 */
-    left: 15px;
+    top: 15px;     /* <-- 已修改 */
     right: 15px;
-    height: 150px; /* 限制最大高度 */
+    height: 500px;
     display: flex;
-    flex-direction: column-reverse; /* 新消息从底部出现 */
-    align-items: flex-start; /* 消息左对齐 */
+    flex-direction: column;        /* <-- 已修改 */
+    align-items: flex-end;         /* <-- 已修改 */
     gap: 4px;
     overflow: hidden;
-    pointer-events: none; /* 穿透点击 */
+    pointer-events: none;
     z-index: 900;
 }
 .log-message {
@@ -647,7 +646,11 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 /* --- [修正] 叙事UI (Narrative UI) --- */
 #narrative-ui {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0; /* 改为全屏覆盖 */
+    top: 0;
+    /* [修改] 不再从屏幕左边缘开始，而是从左侧面板之后开始，使其仅覆盖主内容区 */
+    left: var(--left-panel-width); 
+    right: 0; 
+    bottom: 0;
     z-index: 1000;
     pointer-events: none;
     opacity: 0;
@@ -655,13 +658,14 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 }
 #narrative-ui.visible {
     opacity: 1;
-    pointer-events: all; /* 显示时整体可交互 */
+    pointer-events: all; 
 }
 
 .narrative-wrapper {
     position: absolute;
     bottom: 0;
-    left: 0;
+    /* [修改] 使用 calc() 和 负边距让对话框向左延伸，以覆盖整个屏幕底部 */
+    left: calc(-1 * var(--left-panel-width));
     right: 0;
     padding: 20px;
     display: flex;
@@ -669,13 +673,13 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
     gap: 20px;
     transform: translateY(100%);
     transition: transform 0.4s ease-out;
-    pointer-events: none; /* 包装器不可交互 */
+    pointer-events: none; 
 }
 #narrative-ui.visible .narrative-wrapper {
     transform: translateY(0);
 }
 .narrative-wrapper > * {
-    pointer-events: all; /* 子元素可交互 */
+    pointer-events: all;
 }
 
 #narrative-avatar {
@@ -735,6 +739,7 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 #narrative-options {
     position: absolute;
     top: 50%;
+    /* [修改] left: 50% 现在是相对于 #narrative-ui (主内容区)，所以可以完美居中 */
     left: 50%;
     transform: translate(-50%, -50%);
     display: flex;

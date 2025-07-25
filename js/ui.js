@@ -152,7 +152,7 @@
             if (!container) return;
 
             // 限制最大消息数量，防止刷屏
-            const MAX_LOGS = 5;
+            const MAX_LOGS = 10;
             if (container.children.length >= MAX_LOGS) {
                 container.removeChild(container.firstChild);
             }
