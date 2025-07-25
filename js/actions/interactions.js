@@ -1,6 +1,6 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v51.0.0 - [重构] 对接新叙事UI)
+ * @description 动作模块 - 场景与对话交互 (v52.0.0 - 架构升级 "磐石计划")
  */
 (function() {
     'use strict';
@@ -31,7 +31,7 @@
             if (sequenceId === 'character_creation') {
                 game.State.updateAllStats(true);
                 game.State.setUIMode('EXPLORE');
-                game.UI.log(game.Utils.formatMessage('gameWelcome', { playerName: gameState.name }), 'var(--primary-color)');
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameWelcome', { playerName: gameState.name }), color: 'var(--primary-color)' });
             } else {
                 game.State.setUIMode('EXPLORE');
             }
@@ -69,7 +69,7 @@
                 this.endSequence();
             } else {
                 gameState.activeSequence.currentQuestionId = nextQuestionId;
-                game.UI.render();
+                game.Events.publish(EVENTS.UI_RENDER);
             }
         },
 
@@ -86,7 +86,7 @@
                 this.endSequence();
             } else {
                 gameState.activeSequence.currentQuestionId = answerData.transition;
-                game.UI.render();
+                game.Events.publish(EVENTS.UI_RENDER);
             }
         },
 
@@ -106,21 +106,27 @@
                 game.currentHotspotContext = null;
                 return;
             }
-
+            
+            // [重构] 交互处理器现在更通用
             const interactionHandlers = {
-                async interactive_dialogue(payload) {
-                    if (payload) await game.UI.showNarrative(payload);
+                async start_dialogue(payload) {
+                    if (payload && payload.dialogueId) await game.UI.showNarrative(payload.dialogueId);
                 },
                 async combat(payload) {
                     if (payload) game.Combat.start(payload);
+                },
+                async action_block(payload) {
+                    if (payload) await this.executeActionBlock(payload);
                 }
             };
 
             const handler = interactionHandlers[interaction.type];
             if (handler) {
-                await handler(interaction.payload);
+                await handler.call(this, interaction.payload);
             } else {
-                console.warn(game.Utils.formatMessage('errorUnknownAction', { type: interaction.type }));
+                const message = game.Utils.formatMessage('errorUnknownAction', { type: interaction.type });
+                console.warn(message);
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message, color: 'var(--error-color)'});
             }
             game.currentHotspotContext = null;
         },

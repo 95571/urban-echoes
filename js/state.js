@@ -1,8 +1,8 @@
 /**
  * @file js/state.js
- * @description 游戏状态管理模块 (v45.1.0 - [修复] 修正布局重构后的函数调用)
+ * @description 游戏状态管理模块 (v52.0.0 - 架构升级 "磐石计划")
  * @author Gemini (CTO)
- * @version 45.1.0
+ * @version 52.0.0
  */
 (function() {
     'use strict';
@@ -15,6 +15,7 @@
             this.updateAllStats(true);
             this.setUIMode(game.state.gameState);
         },
+
         updateAllStats(isInitialization = false) {
             game.state.effectiveStats = game.Utils.calculateEffectiveStatsForUnit(game.state);
 
@@ -35,7 +36,9 @@
                 game.state.mp = Math.round(newMaxMp * (isNaN(mpRatio) ? 1 : mpRatio));
             }
         },
+
         get() { return game.state; },
+
         setUIMode(mode, options = {}) {
             if (mode === 'MENU' && game.state.gameState !== 'MENU' && game.state.gameState !== 'TITLE') {
                 game.state.previousGameState = game.state.gameState;
@@ -52,30 +55,38 @@
                 if (options.screen !== 'STATUS') game.state.menu.skillDetailView = null;
                 if(options.screen !== 'PARTY' && options.screen !== 'STATUS') game.state.menu.statusViewTargetId = null;
             }
-            game.UI.render();
+            // [重构] 发布UI渲染事件，而不是直接调用UI模块
+            game.Events.publish(EVENTS.UI_RENDER);
         },
 
         applyEffect(effect) {
             if (!effect) return;
             const state = game.state;
+            let changed = false;
+
             if (effect.stats) {
                 for (const stat in effect.stats) {
                     state.stats[stat] = Math.max(1, (state.stats[stat] || 0) + effect.stats[stat]);
+                    changed = true;
                 }
             }
             if (typeof effect.gold === 'number') {
                 state.gold = Math.max(0, (state.gold || 0) + effect.gold);
+                changed = true;
             }
             if(typeof effect.hp === 'number') {
                 state.hp = Math.max(0, Math.min(state.maxHp, state.hp + effect.hp));
+                changed = true;
             }
             if(typeof effect.mp === 'number') {
                 state.mp = Math.max(0, Math.min(state.maxMp, state.mp + effect.mp));
+                changed = true;
             }
-            this.updateAllStats(false);
-            // [修复] 调用重构后的函数名
-            if (game.state.gameState !== 'TITLE') {
-                game.UI.renderLeftPanel();
+
+            if (changed) {
+                this.updateAllStats(false);
+                // [重构] 发布状态变更事件
+                game.Events.publish(EVENTS.STATE_CHANGED);
             }
         }
     };

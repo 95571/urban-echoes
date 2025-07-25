@@ -1,6 +1,6 @@
 /**
  * @file js/actions/system.js
- * @description 动作模块 - 系统流程控制 (v51.2.0 - [修复] 修正读档界面按钮)
+ * @description 动作模块 - 系统流程控制 (v52.0.0 - 架构升级 "磐石计划")
  */
 (function() {
     'use strict';
@@ -17,7 +17,6 @@
                 const slotData = meta[slot];
                 const info = slotData ? `${slotData.name} - ${slotData.time}` : '[空]';
                 let buttonsHtml = '';
-                // [修复] 确保所有按钮都被正确添加
                 if (slotData) {
                     buttonsHtml += `<button data-action="loadGame" data-slot="${slot}" title="读取">${gameData.icons.load}</button>`;
                     buttonsHtml += `<button data-action="exportSave" data-slot="${slot}" title="导出">${gameData.icons.export}</button>`;
@@ -62,12 +61,14 @@
                         meta[slot] = { name: saveData.name, time: timeString, timestamp: Date.now() };
                         localStorage.setItem(game.SAVE_KEY_PREFIX + slot, JSON.stringify(saveData));
                         localStorage.setItem(game.SAVE_META_KEY, JSON.stringify(meta));
-                        game.UI.log(game.Utils.formatMessage('gameImported', { slot: slot }), 'var(--success-color)');
-                        game.SaveLoad.renderSystemMenu();
+                        
+                        game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameImported', { slot: slot }), color: 'var(--success-color)' });
+                        game.Events.publish(EVENTS.GAME_SAVED); // 发布事件通知UI刷新（例如SYSTEM菜单）
+
                         game.UI.ModalManager.hideAll();
                         this.showLoadScreen();
                     } catch (err) {
-                        game.UI.log(game.Utils.formatMessage('errorLoadGame'), "var(--error-color)");
+                        game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('errorLoadGame'), color: "var(--error-color)" });
                         console.error("Import save failed:", err);
                     }
                 };
@@ -98,13 +99,15 @@
             const choice = await game.UI.showConfirmation(gameData.systemMessages.loadConfirm);
             if (choice && choice.originalOption && choice.originalOption.value) {
                 game.SaveLoad.load(slot);
+            } else {
+                game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
             }
         },
         exportSave(slot) {
             if (!slot) return;
             const savedString = localStorage.getItem(game.SAVE_KEY_PREFIX + slot);
             if (!savedString) {
-                game.UI.log(game.Utils.formatMessage('noSaveFile'), "var(--error-color)");
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('noSaveFile'), color: "var(--error-color)" });
                 return;
             }
             try {
@@ -116,10 +119,10 @@
                 a.download = fileName;
                 a.click();
                 URL.revokeObjectURL(a.href);
-                game.UI.log(game.Utils.formatMessage('gameExported', { slot: slot }), 'var(--primary-color)');
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameExported', { slot: slot }), color: 'var(--primary-color)' });
             } catch(e) {
                 console.error("Export save failed:", e);
-                game.UI.log("导出存档失败！", "var(--error-color)");
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: "导出存档失败！", color: "var(--error-color)" });
             }
         },
         async resetGame() {
@@ -128,12 +131,14 @@
                 localStorage.clear();
                 sessionStorage.clear();
                 window.location.reload();
+            } else {
+                game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
             }
         },
         paginateHotspots(direction) {
             const state = game.State.get();
             state.hotspotPageIndex = (state.hotspotPageIndex || 0) + parseInt(direction, 10);
-            game.UI.render();
+            game.Events.publish(EVENTS.UI_RENDER);
         }
     });
 })();

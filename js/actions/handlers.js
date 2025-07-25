@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v51.0.0 - [新增] 叙事UI控制动作)
+ * @description 动作模块 - ActionBlock执行器 (v52.0.0 - 架构升级 "磐石计划")
  */
 (function() {
     'use strict';
@@ -15,32 +15,37 @@
             const maxHp = state.maxHp;
             const maxMp = state.maxMp;
             game.State.applyEffect({ hp: maxHp, mp: maxMp });
-            game.UI.log(game.Utils.formatMessage('fullHeal'), 'var(--success-color)');
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fullHeal'), color: 'var(--success-color)' });
         }
     };
 
     const actionHandlers = {
-        log({ text, color }) { game.UI.log(text, color); },
-        show_dialogue(payload) { return game.UI.showNarrative(payload); }, // [修改] 改为调用新叙事UI
+        // [重构] 发布事件，而不是直接调用UI
+        log({ text, color }) { game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: text, color: color }); },
+        show_toast(payload) { game.Events.publish(EVENTS.UI_SHOW_TOAST, payload); },
+        
+        // [新增] 启动扁平化对话节点的动作
+        start_dialogue(payload) { return game.UI.showNarrative(payload.dialogueId); },
+
         effect(payload) { game.State.applyEffect(payload); },
-        show_toast(payload) { game.UI.showToast(payload); },
         action(payload) {
             if (payload && payload.id && namedActions[payload.id]) {
                 namedActions[payload.id]();
             } else {
                 const id = payload ? payload.id : 'undefined';
-                console.error(`[Action Block Handler] Named action "${id}" not found.`);
-                game.UI.log(`错误：未知的动作块动作ID "${id}"`, 'var(--error-color)');
+                const message = `[Action Block Handler] Named action "${id}" not found.`;
+                console.error(message);
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `错误：未知的动作块动作ID "${id}"`, color: 'var(--error-color)' });
             }
         },
         destroy_scene_element() {
             if (game.currentHotspotContext) {
                 const { locationId, hotspotIndex, hotspotType } = game.currentHotspotContext;
                 const keyPrefix = hotspotType === 'discovery' ? 'discovery' : 'hotspot';
-                const varId = `${keyPrefix}_destroyed_${locationId}_${hotspotIndex}`;
+                const varId = VARS[`${keyPrefix}Destroyed`](locationId, hotspotIndex);
                 this.modify_variable({ varId: varId, operation: 'set', value: 1 });
                 if (game.State.get().gameState === 'EXPLORE') {
-                    game.UI.render();
+                    game.Events.publish(EVENTS.UI_RENDER);
                 }
             } else {
                 console.warn("destroy_scene_element called without a valid hotspot context.");
@@ -52,7 +57,7 @@
             gameState.hotspotPageIndex = 0;
             game.State.setUIMode('EXPLORE');
             const locationName = gameData.locations[payload.locationId]?.name || '未知地点';
-            game.UI.log(game.Utils.formatMessage('enterLocation', { locationName: locationName }));
+            this.log({ text: game.Utils.formatMessage('enterLocation', { locationName: locationName }) });
         },
         add_item(payload) {
             game.Actions.addItemToInventory(payload.itemId, payload.quantity || 1);
@@ -79,16 +84,14 @@
                 while(time.phase >= phasesInDay) {
                     time.phase -= phasesInDay;
                     time.day++;
-                    game.UI.log(game.Utils.formatMessage('newDay'), "var(--secondary-color)");
+                    this.log({ text: game.Utils.formatMessage('newDay'), color: "var(--secondary-color)" });
                     const daysInMonth = new Date(time.year, time.month, 0).getDate();
                     if(time.day > daysInMonth) {
                         time.day = 1; time.month++;
                         if(time.month > 12) { time.month = 1; time.year++; }
                     }
                 }
-                if (game.state.gameState !== 'TITLE') {
-                    game.UI.renderLeftPanel();
-                }
+                game.Events.publish(EVENTS.TIME_ADVANCED);
                 resolve();
             });
         },
@@ -121,11 +124,9 @@
             }
 
             if (log) {
-                game.UI.log(log, logColor);
+                this.log({ text: log, color: logColor });
             }
-            if (state.gameState === 'MENU' && state.menu.current === 'INVENTORY') {
-                game.UI.render();
-            }
+            game.Events.publish(EVENTS.STATE_CHANGED);
         },
         modify_variable({ varId, operation, value, log, logColor }) {
             const state = game.State.get();
@@ -134,25 +135,17 @@
             const oldValue = state.variables[varId] || 0;
 
             switch(operation) {
-                case 'set':
-                    state.variables[varId] = value;
-                    break;
-                case 'add':
-                    state.variables[varId] = oldValue + value;
-                    break;
-                case 'subtract':
-                    state.variables[varId] = oldValue - value;
-                    break;
-                default:
-                    console.error(`未知的变量操作: ${operation}`);
-                    return;
+                case 'set': state.variables[varId] = value; break;
+                case 'add': state.variables[varId] = oldValue + value; break;
+                case 'subtract': state.variables[varId] = oldValue - value; break;
+                default: console.error(`未知的变量操作: ${operation}`); return;
             }
 
             if (log) {
-                game.UI.log(log, logColor);
+                this.log({ text: log, color: logColor });
             }
             if (state.gameState === 'EXPLORE') {
-                game.UI.render();
+                game.Events.publish(EVENTS.UI_RENDER);
             }
         },
         async acceptJob({ jobId }) {
@@ -180,10 +173,9 @@
             delete gameState.quests[questId];
 
             if (gameState.gameState === 'MENU' && gameState.menu.current === 'QUESTS') {
-                game.UI.render();
+                game.Events.publish(EVENTS.UI_RENDER);
             }
         },
-        // [新增] 叙事UI原子动作
         change_avatar({ imageUrl }) {
             if (game.narrativeContext) {
                 game.UI.NarrativeManager.updateAvatar(imageUrl);
@@ -200,9 +192,11 @@
             const action = block.action || block;
             const handler = actionHandlers[action.type];
             if (handler) {
-                await handler.call(actionHandlers, action.payload); // 确保 this 指向 actionHandlers
+                await handler.call(actionHandlers, action.payload);
             } else {
-                console.error(game.Utils.formatMessage('errorUnknownAction', { type: action.type }));
+                const message = game.Utils.formatMessage('errorUnknownAction', { type: action.type });
+                console.error(message);
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message, color: 'var(--error-color)' });
             }
         }
     }

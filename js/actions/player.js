@@ -1,6 +1,6 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v51.2.0 - [修复] 新增按索引移除物品的动作)
+ * @description 动作模块 - 玩家动作 (v52.0.0 - 架构升级 "磐石计划")
  */
 (function() {
     'use strict';
@@ -10,28 +10,27 @@
     if (!game.Actions) game.Actions = {};
 
     Object.assign(game.Actions, {
-        async useItem(index) { 
+        async useItem(index) {
             const gameState = game.State.get();
-            const itemStack = gameState.inventory[index]; 
+            const itemStack = gameState.inventory[index];
             if (!itemStack) return;
-            const itemData = gameData.items[itemStack.id]; 
-            
+            const itemData = gameData.items[itemStack.id];
+
             if (itemData.onUseActionBlock) {
                 await this.executeActionBlock(itemData.onUseActionBlock);
             }
 
-            const currentItemStack = gameState.inventory.find(i => i.id === itemStack.id);
-            if (currentItemStack) {
-                currentItemStack.quantity--; 
-                if (currentItemStack.quantity <= 0) {
-                    const itemIndex = gameState.inventory.findIndex(i => i.id === itemStack.id);
-                    if (itemIndex > -1) {
-                        gameState.inventory.splice(itemIndex, 1);
-                    }
+            // 移除物品的逻辑现在更健壮
+            const itemIndex = gameState.inventory.findIndex(i => i.id === itemStack.id && i === itemStack);
+            if (itemIndex > -1) {
+                gameState.inventory[itemIndex].quantity--;
+                if (gameState.inventory[itemIndex].quantity <= 0) {
+                    gameState.inventory.splice(itemIndex, 1);
                 }
             }
-            
-            game.UI.render(); 
+
+            game.Events.publish(EVENTS.STATE_CHANGED); // 发布状态变更事件
+            game.Events.publish(EVENTS.UI_RENDER); // 请求重绘，以防万一（例如更新物品列表）
         },
 
         equipItem(index) {
@@ -47,16 +46,17 @@
                 return;
             }
             if (targetSlot.itemId) {
-                this.unequipItem(slotId, true);
+                this.unequipItem(slotId, true); // 内部调用，不触发渲染
             }
             targetSlot.itemId = itemStack.id;
             itemStack.quantity--;
             if (itemStack.quantity <= 0) {
                 gameState.inventory.splice(index, 1);
             }
-            game.UI.log(game.Utils.formatMessage('equipItem', { itemName: itemData.name }));
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('equipItem', { itemName: itemData.name }) });
             game.State.updateAllStats(false);
-            game.UI.render();
+            game.Events.publish(EVENTS.STATE_CHANGED);
+            game.Events.publish(EVENTS.UI_RENDER);
         },
 
         unequipItem(slotId, internal = false) {
@@ -64,21 +64,21 @@
             const targetSlot = gameState.equipped[slotId];
             if (!targetSlot || !targetSlot.itemId) return;
             const itemToUnequipId = targetSlot.itemId;
-            this.addItemToInventory(itemToUnequipId, 1);
+            this.addItemToInventory(itemToUnequipId, 1, true); // 内部调用，不触发渲染
             targetSlot.itemId = null;
             if (!internal) {
-                game.UI.log(game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }));
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }) });
                 game.State.updateAllStats(false);
-                game.UI.render();
+                game.Events.publish(EVENTS.STATE_CHANGED);
+                game.Events.publish(EVENTS.UI_RENDER);
             }
         },
         
-        // [新增] 内部使用的、按索引移除物品的函数
         removeItemByIndex(index, quantity) {
             const state = game.State.get();
             const itemStack = state.inventory[index];
             if (!itemStack) return;
-
+            const itemData = gameData.items[itemStack.id];
             const clampedQuantity = Math.max(0, Math.min(quantity, itemStack.quantity));
             if (clampedQuantity <= 0) return;
 
@@ -86,7 +86,7 @@
             if (itemStack.quantity <= 0) {
                 state.inventory.splice(index, 1);
             }
-            game.UI.log(game.Utils.formatMessage('itemDropped', { itemName: gameData.items[itemStack.id].name, quantity: clampedQuantity }));
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('itemDropped', { itemName: itemData.name, quantity: clampedQuantity }) });
         },
 
         async dropItem(index) { 
@@ -98,8 +98,17 @@
                 await game.UI.showMessage('这个物品很重要，不能丢弃。');
                 return;
             }
+
             if (item.quantity > 1) {
-                game.UI.showDropQuantityPrompt(index);
+                const quantityToDrop = await game.UI.showDropQuantityPrompt(index);
+                if (quantityToDrop) {
+                    this.removeItemByIndex(index, quantityToDrop);
+                    game.Events.publish(EVENTS.STATE_CHANGED);
+                    game.Events.publish(EVENTS.UI_RENDER);
+                } else {
+                    // 用户取消了弹窗，也需要刷新底部导航栏状态
+                    game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
+                }
             } else {
                 const choice = await game.UI.showConfirmation({
                     ...gameData.systemMessages.dropItemConfirm,
@@ -107,25 +116,38 @@
                 });
                 if (choice && choice.originalOption && choice.originalOption.value) {
                     this.removeItemByIndex(index, 1);
-                    game.UI.render(); 
-                } 
+                    game.Events.publish(EVENTS.STATE_CHANGED);
+                    game.Events.publish(EVENTS.UI_RENDER);
+                } else {
+                    game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
+                }
             }
         },
-        addItemToInventory(id, q = 1) { 
+        
+        addItemToInventory(id, q = 1, internal = false) { 
             const gameState = game.State.get();
             const itemData = gameData.items[id];
             if (!itemData) return;
-            game.UI.log(game.Utils.formatMessage('getItemLoot', { itemName: itemData.name, quantity: q}), 'var(--success-color)');
+            
+            if (!internal) {
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('getItemLoot', { itemName: itemData.name, quantity: q}), color: 'var(--success-color)' });
+            }
+
             const existingStack = gameState.inventory.find(i => i.id === id); 
             if (existingStack) {
                 existingStack.quantity += q; 
             } else {
                 gameState.inventory.push({ id: id, quantity: q });
             }
+
+            if (!internal) {
+                game.Events.publish(EVENTS.STATE_CHANGED);
+            }
         },
-        setPlayerName(name) { game.State.get().name = name || '无名者'; },
-        setFocusTarget(combatId) { const gameState = game.State.get(); if (!gameState.isCombat) return; gameState.combatState.focusedTargetId = combatId; game.UI.render(); },
-        viewSkillDetail(skillId) { game.State.get().menu.skillDetailView = skillId; game.UI.render(); },
+
+        setPlayerName(name) { game.State.get().name = name || '无名者'; game.Events.publish(EVENTS.STATE_CHANGED); },
+        setFocusTarget(combatId) { const gameState = game.State.get(); if (!gameState.isCombat) return; gameState.combatState.focusedTargetId = combatId; game.Events.publish(EVENTS.UI_RENDER); },
+        viewSkillDetail(skillId) { game.State.get().menu.skillDetailView = skillId; game.Events.publish(EVENTS.UI_RENDER); },
         viewRelationshipDetail(personId) { 
             game.State.get().menu.statusViewTargetId = personId;
             game.State.setUIMode('MENU', { screen: 'STATUS' });
@@ -137,7 +159,7 @@
         async acceptJob(jobId) {
             const jobData = gameData.jobs[jobId];
             if (!jobData) {
-                game.UI.log(`错误：找不到ID为 ${jobId} 的兼职。`, 'var(--error-color)');
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `错误：找不到ID为 ${jobId} 的兼职。`, color: 'var(--error-color)' });
                 return;
             }
             const gameState = game.State.get();
@@ -161,12 +183,12 @@
                 sourceJobId: jobId,
                 objectives: JSON.parse(JSON.stringify(jobData.objectives || []))
             };
-            game.UI.log(game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), 'var(--primary-color)');
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), color: 'var(--primary-color)' });
         },
         playerCombatAttack() { game.Combat.playerAttack(); },
         playerCombatDefend() { game.Combat.playerDefend(); },
-        playerCombatSkill() { game.UI.log("技能系统将在未来版本实装。"); },
-        playerCombatItem() { game.UI.log("道具系统将在未来版本实装。"); },
+        playerCombatSkill() { game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: "技能系统将在未来版本实装。" }); },
+        playerCombatItem() { game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: "道具系统将在未来版本实装。" }); },
         playerCombatFlee() { game.Combat.playerFlee(); },
     });
 })();

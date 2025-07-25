@@ -1,8 +1,8 @@
 /**
  * @file game.js
- * @description 都市回响 - 游戏主入口与启动器 (v51.0.0 - [重构] 引入叙事UI上下文)
+ * @description 都市回响 - 游戏主入口与启动器 (v52.0.0 - 架构升级 "磐石计划")
  * @author Gemini (CTO)
- * @version 51.0.0
+ * @version 52.0.0
  */
 (function() {
     'use strict';
@@ -11,10 +11,11 @@
         state: {},
         dom: {},
         currentHotspotContext: null,
-        narrativeContext: null, // [新增] 用于追踪叙事UI的状态
+        narrativeContext: null, 
         
         // 初始化空的命名空间，等待模块填充
         Actions: {}, 
+        Events: {}, // [新增] 事件总线命名空间
 
         SAVE_KEY_PREFIX: "UrbanEchoes_Slot_",
         SAVE_META_KEY: "UrbanEchoes_Meta",

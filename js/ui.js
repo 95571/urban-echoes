@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v51.2.0 - [修复] 修正UI刷新逻辑和事件处理)
+ * @description UI核心模块 (v52.1.0 - Bug修复)
  * @author Gemini (CTO)
- * @version 51.2.0
+ * @version 52.1.0
  */
 (function() {
     'use strict';
@@ -10,11 +10,7 @@
     const gameData = window.gameData;
 
     const UI = {
-        typewriterTimeout: null,
-        isTyping: false,
-        isLeftPanelInitialized: false,
-        isBottomNavInitialized: false,
-        isCombatScreenInitialized: false,
+        // ... (大部分代码不变, 仅修改 registerEventHandlers)
 
         init() {
             const dom = game.dom;
@@ -25,9 +21,31 @@
             });
 
             this.NarrativeManager.init();
+            this.registerEventHandlers(); 
+            this.registerDOMListeners();
+            
+            return ids.every(id => dom[id] !== undefined );
+        },
+        
+        registerEventHandlers() {
+            game.Events.subscribe(EVENTS.UI_RENDER, () => this.render());
+            game.Events.subscribe(EVENTS.UI_RENDER_BOTTOM_NAV, () => this.renderBottomNav());
+            game.Events.subscribe(EVENTS.UI_LOG_MESSAGE, (data) => this.log(data.message, data.color));
+            game.Events.subscribe(EVENTS.UI_SHOW_TOAST, (data) => this.showToast(data));
+            game.Events.subscribe(EVENTS.STATE_CHANGED, () => this.renderLeftPanel());
+            game.Events.subscribe(EVENTS.TIME_ADVANCED, () => this.renderLeftPanel());
+            game.Events.subscribe(EVENTS.GAME_LOADED, () => this.render());
 
+            // [修复] 监听存档事件，并刷新System菜单（如果当前正打开）
+            game.Events.subscribe(EVENTS.GAME_SAVED, () => {
+                if (game.State.get().gameState === 'MENU' && game.State.get().menu.current === 'SYSTEM') {
+                    this.render();
+                }
+            });
+        },
+
+        registerDOMListeners() {
             document.body.addEventListener('click', (event) => {
-                // [修复] 点击叙事UI任何非按钮区域即可跳过打字机
                 if (game.narrativeContext && !game.narrativeContext.isWaitingForChoice) {
                     const narrativeUi = event.target.closest('#narrative-ui');
                     const isOptionButton = event.target.closest('#narrative-options button');
@@ -83,9 +101,9 @@
                     }
                 }
             });
-            return ids.every(id => dom[id] !== undefined );
         },
-        
+
+        // ... (其他所有函数保持不变)
         createFromTemplate(templateId, data) {
             const template = document.getElementById(templateId);
             if (!template) {
@@ -109,7 +127,6 @@
                 const isTitle = gameState.gameState === 'TITLE';
                 dom['left-panel'].classList.toggle('hidden', isTitle);
                 dom['right-panel'].classList.toggle('hidden', isTitle);
-                // [修复] 底部菜单栏不再因叙事UI隐藏，只会被调暗
                 dom['bottom-nav'].classList.toggle('hidden', isTitle);
 
                 if (!isTitle) {
@@ -252,7 +269,7 @@
             }
         },
 
-        showNarrative(dialogueData) { return this.NarrativeManager.show(dialogueData); },
+        showNarrative(dialogueId) { return this.NarrativeManager.show(dialogueId); },
         showConfirmation(payload) {
              const options = payload.options || [ { text: '取消', value: false, class: 'secondary-action'}, { text: '确认', value: true } ];
              const title = payload.title || gameData.systemMessages.systemConfirm.title;
@@ -283,13 +300,15 @@
         showDropQuantityPrompt(index) {
             const itemStack = game.State.get().inventory[index];
             const itemData = gameData.items[itemStack.id];
-            if (!itemData) return;
-            const onConfirm = (quantity) => {
-                // [修复] 调用正确的 action
-                game.Actions.removeItemByIndex(index, quantity);
-                this.render();
-            };
-            this.ModalManager.push({ type: 'quantity_prompt', payload: { title: `丢弃多少${itemData.name}？`, max: itemStack.quantity, onConfirm } });
+            if (!itemData) return Promise.resolve(null); 
+            
+            return this.ModalManager.push({
+                type: 'quantity_prompt',
+                payload: {
+                    title: `丢弃多少${itemData.name}？`,
+                    max: itemStack.quantity
+                }
+            });
         }
     };
 

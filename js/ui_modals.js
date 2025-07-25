@@ -1,15 +1,15 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 叙事UI与自定义弹窗管理器 (v51.2.0 - [修复] 隐藏场景箭头)
+ * @description UI模块 - 叙事UI与自定义弹窗管理器 (v52.0.0 - 架构升级 "磐石计划")
  * @author Gemini (CTO)
- * @version 51.2.0
+ * @version 52.0.0
  */
 (function() {
     'use strict';
     const game = window.game;
     const gameData = window.gameData;
 
-    // --- 新的叙事UI管理器 ---
+    // --- 叙事UI管理器 (重构后) ---
     const NarrativeManager = {
         init() {
             const dom = game.dom;
@@ -18,10 +18,25 @@
             ids.forEach(id => dom[id] = document.getElementById(id));
         },
 
-        show(dialogueData) {
+        show(initialDialogueId) {
             return new Promise(resolve => {
-                game.narrativeContext = { dialogueData, currentSegmentIndex: 0, resolve, isWaitingForChoice: false };
+                const initialNode = gameData.dialogues[initialDialogueId];
+                if (!initialNode) {
+                    console.error(`[NarrativeManager] Dialogue with ID "${initialDialogueId}" not found.`);
+                    resolve({ value: false, error: 'Dialogue not found' });
+                    return;
+                }
+                
+                game.narrativeContext = {
+                    currentNode: initialNode,
+                    currentSegmentIndex: 0,
+                    resolve,
+                    isWaitingForChoice: false
+                };
+
                 this.toggleUiElements(true);
+                game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
+
                 const ui = game.dom["narrative-ui"];
                 ui.classList.remove('hidden');
                 setTimeout(() => ui.classList.add('visible'), 10);
@@ -34,19 +49,20 @@
             clearTimeout(game.UI.typewriterTimeout);
             game.UI.isTyping = false;
             const ui = game.dom["narrative-ui"];
+            
             ui.classList.remove('visible');
+            this.toggleUiElements(false);
+
             setTimeout(() => {
                 ui.classList.add('hidden');
-                this.toggleUiElements(false);
                 game.narrativeContext = null;
-                game.UI.render();
-            }, 400);
+                game.Events.publish(EVENTS.UI_RENDER);
+            }, 400); 
         },
 
         toggleUiElements(isNarrativeActive) {
             const dom = game.dom;
             ['left-panel', 'right-panel', 'bottom-nav'].forEach(id => dom[id]?.classList.toggle('dimmed', isNarrativeActive));
-            // [修复] 将箭头也加入隐藏列表
             dom.screen.querySelectorAll('.hotspot-card, .sparkle-hotspot, .hotspot-arrow').forEach(el => {
                 el.style.opacity = isNarrativeActive ? '0' : '1';
                 el.style.pointerEvents = isNarrativeActive ? 'none' : 'all';
@@ -66,22 +82,27 @@
             if (game.UI.isTyping) {
                 clearTimeout(game.UI.typewriterTimeout);
                 game.UI.isTyping = false;
-                const segment = ctx.dialogueData.dialogueText[ctx.currentSegmentIndex - 1];
+                const segment = ctx.currentNode.dialogueText[ctx.currentSegmentIndex - 1];
                 game.dom["narrative-text"].innerHTML = segment.text.replace(/\n/g, '<br>');
                 this.onSegmentComplete();
                 return;
             }
             if (ctx.isWaitingForChoice) return;
-            const hasDialogue = Array.isArray(ctx.dialogueData.dialogueText) && ctx.dialogueData.dialogueText.length > 0;
-            if (!hasDialogue || ctx.currentSegmentIndex >= ctx.dialogueData.dialogueText.length) {
+
+            const dialogueText = ctx.currentNode.dialogueText;
+            const hasDialogue = Array.isArray(dialogueText) && dialogueText.length > 0;
+            
+            if (!hasDialogue || ctx.currentSegmentIndex >= dialogueText.length) {
                 this.showOptions();
                 if (!hasDialogue) {
-                    this.updateAvatar(game.State.get().currentLocationId ? gameData.locations[game.State.get().currentLocationId].imageUrl || 'images/player_dialogue.png' : 'images/player_dialogue.png', '');
+                    const defaultAvatar = game.State.get().currentLocationId ? gameData.locations[game.State.get().currentLocationId].imageUrl || 'images/player_dialogue.png' : 'images/player_dialogue.png';
+                    this.updateAvatar(defaultAvatar, '');
                     game.dom["narrative-text"].innerHTML = '';
                 }
                 return;
             }
-            const segment = ctx.dialogueData.dialogueText[ctx.currentSegmentIndex];
+
+            const segment = dialogueText[ctx.currentSegmentIndex];
             ctx.currentSegmentIndex++;
             this.updateAvatar(segment.avatar, segment.name);
             game.dom["narrative-continue-indicator"].classList.add('hidden');
@@ -91,7 +112,7 @@
         onSegmentComplete() {
             const ctx = game.narrativeContext;
             if (!ctx) return;
-            const hasMoreSegments = ctx.dialogueData.dialogueText && ctx.currentSegmentIndex < ctx.dialogueData.dialogueText.length;
+            const hasMoreSegments = ctx.currentNode.dialogueText && ctx.currentSegmentIndex < ctx.currentNode.dialogueText.length;
             if (hasMoreSegments) {
                 game.dom["narrative-continue-indicator"].classList.remove('hidden');
             } else {
@@ -112,54 +133,60 @@
             ctx.isWaitingForChoice = true;
             game.dom["narrative-continue-indicator"].classList.add('hidden');
             game.dom["narrative-box"].style.cursor = 'default';
-            const options = ctx.dialogueData.options || [];
-            const availableOptions = options
-                .filter(opt => game.ConditionChecker.evaluate(opt.conditions))
-                .map((opt, index) => ({ ...opt, originalIndex: index }));
+            
+            const options = ctx.currentNode.options || [];
+            const availableOptions = options.filter(opt => game.ConditionChecker.evaluate(opt.conditions));
+
             if (availableOptions.length === 0) {
                 ctx.resolve({ value: true });
                 this.hide();
                 return;
             }
             const optionsContainer = game.dom["narrative-options"];
-            optionsContainer.innerHTML = availableOptions.map(opt => 
-                `<button data-index="${opt.originalIndex}" class="${opt.class || ''}">${opt.text}</button>`
+            optionsContainer.innerHTML = availableOptions.map((opt, index) => 
+                `<button data-index="${index}" class="${opt.class || ''}">${opt.text}</button>`
             ).join('');
+            
             optionsContainer.querySelectorAll('button').forEach(btn => {
                 btn.onclick = async (e) => {
                     e.stopPropagation();
-                    const chosenIndex = parseInt(btn.dataset.index, 10);
-                    await this.handleChoice(chosenIndex);
+                    const chosenVisibleIndex = parseInt(btn.dataset.index, 10);
+                    const chosenOption = availableOptions[chosenVisibleIndex];
+                    await this.handleChoice(chosenOption);
                 };
             });
         },
 
-        async handleChoice(chosenIndex) {
+        async handleChoice(chosenOption) {
             const ctx = game.narrativeContext;
             if (!ctx) return;
-            const chosenOption = ctx.dialogueData.options[chosenIndex];
             game.dom["narrative-options"].innerHTML = '';
+
             if (chosenOption.actionBlock) {
                 await game.Actions.executeActionBlock(chosenOption.actionBlock);
             }
-            if (chosenOption.followUp) {
-                ctx.dialogueData = chosenOption.followUp;
-                ctx.currentSegmentIndex = 0;
-                ctx.isWaitingForChoice = false;
-                game.dom["narrative-box"].style.cursor = 'pointer';
-                this.showNextSegment();
+
+            if (chosenOption.transitionTo) {
+                const nextNode = gameData.dialogues[chosenOption.transitionTo];
+                if (nextNode) {
+                    ctx.currentNode = nextNode;
+                    ctx.currentSegmentIndex = 0;
+                    ctx.isWaitingForChoice = false;
+                    game.dom["narrative-box"].style.cursor = 'pointer';
+                    this.showNextSegment();
+                } else {
+                    console.error(`[NarrativeManager] Transition failed: Dialogue node "${chosenOption.transitionTo}" not found.`);
+                    ctx.resolve({ value: false, error: 'Transition failed' });
+                    this.hide();
+                }
             } else if (chosenOption.subDialogue) {
                 this.hide();
                 setTimeout(() => {
                     const sub = chosenOption.subDialogue;
-                    if (sub.type === 'job_board') {
-                        game.UI.showJobBoard(sub.payload);
-                    } else {
-                        game.UI.showCustomModal(sub.payload);
-                    }
+                    if (sub.type === 'job_board') game.UI.showJobBoard(sub.payload);
+                    else game.UI.showCustomModal(sub.payload);
                 }, 400);
-            }
-            else {
+            } else {
                 ctx.resolve({ value: chosenOption.value, originalOption: chosenOption });
                 this.hide();
             }
@@ -167,6 +194,7 @@
     };
     
     const ModalManager = {
+        // ... (ModalManager 的所有代码保持不变, 为简洁此处省略)
         stack: [],
         baseZIndex: 1200,
         async push(modalConfig) {
@@ -212,7 +240,7 @@
         createModalFrame(title, contentHtml, actionsHtml) {
             const overlay = document.createElement('div');
             overlay.className = 'custom-modal-overlay';
-            overlay.onclick = (e) => { if (e.target === overlay) this.pop(); };
+            overlay.onclick = (e) => { if (e.target === overlay) this.resolveCurrent(null); }; // [修改] 点击遮罩层取消
             const box = document.createElement('div');
             box.className = 'custom-modal-box';
             box.innerHTML = `
@@ -242,7 +270,7 @@
             const { title, html } = modalConfig.payload;
             const actionsHtml = `<button class="secondary-action custom-modal-close-btn">关闭</button>`;
             const overlay = this.createModalFrame(title, html, actionsHtml);
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
+            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
             return overlay;
         },
         createItemDetailsDOM(modalConfig) {
@@ -273,7 +301,7 @@
             const overlay = this.createModalFrame('物品详情', contentHtml, actionsHtml);
             this.makeListDraggable(overlay.querySelector('.item-details-effects-list'));
             overlay.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => this.hideAll()));
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
+            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
             return overlay;
         },
         createJobBoardDOM(modalConfig) {
@@ -301,7 +329,7 @@
             }
             jobListHtml += '</ul>';
             const overlay = this.createModalFrame(title, `<div class="job-board-content">${jobListHtml}</div>`, `<button class="secondary-action custom-modal-close-btn">关闭</button>`);
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
+            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
             overlay.querySelectorAll('.job-item').forEach(item => {
                 item.onclick = () => game.UI.showJobDetails(item.dataset.jobId);
             });
@@ -346,11 +374,11 @@
             }
             const contentHtml = `<div class="quest-details-content"><h4>任务描述</h4><p>${jobData.description}</p>${objectivesHtml}<h4>任务报酬</h4><p><strong>${jobData.reward}</strong></p></div>`;
             const overlay = this.createModalFrame(jobData.title, contentHtml, `<button class="secondary-action custom-modal-close-btn">关闭</button>`);
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.pop();
+            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
             return overlay;
         },
         createQuantityPromptDOM(modalConfig) {
-            const { title, max, onConfirm } = modalConfig.payload;
+            const { title, max } = modalConfig.payload;
             const contentHtml = `<div class="quantity-prompt-content"><div class="quantity-prompt-header">${title}</div><div class="quantity-controls"><input type="number" class="quantity-input" value="1" min="1" max="${max}"><input type="range" class="quantity-slider" value="1" min="1" max="${max}"></div></div>`;
             const actionsHtml = `<button class="quantity-cancel-btn secondary-action">取消</button><button class="quantity-confirm-btn">确认</button>`;
             const overlay = this.createModalFrame('选择数量', contentHtml, actionsHtml);
@@ -358,8 +386,8 @@
             const syncValues = (source) => { let value = Math.max(1, Math.min(max, parseInt(source.value, 10) || 1)); input.value = value; slider.value = value; };
             input.oninput = () => syncValues(input);
             slider.oninput = () => syncValues(slider);
-            overlay.querySelector('.quantity-confirm-btn').onclick = () => { if (onConfirm) onConfirm(parseInt(input.value, 10)); this.pop(); };
-            overlay.querySelector('.quantity-cancel-btn').onclick = () => this.pop();
+            overlay.querySelector('.quantity-confirm-btn').onclick = () => this.resolveCurrent(parseInt(input.value, 10));
+            overlay.querySelector('.quantity-cancel-btn').onclick = () => this.resolveCurrent(null);
             return overlay;
         },
         makeListDraggable(element) {

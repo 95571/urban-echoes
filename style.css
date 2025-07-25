@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 (v51.2.0 - [修复] 修正叙事UI选项定位及底部菜单栏消失问题)
+ * @description 游戏样式表 (v51.5.0 - [界面修复] 修正禁用按钮样式)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -55,7 +55,6 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
 }
 
 #left-panel.dimmed, #right-panel.dimmed, #bottom-nav.dimmed {
-    filter: brightness(0.6);
     pointer-events: none;
 }
 
@@ -201,6 +200,8 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
 .nav-button:hover { color: var(--text-color); background-color: var(--panel-color); }
 .nav-button.active { color: var(--text-on-primary-color); background-color: var(--primary-color); font-weight: bold; border-color: rgba(0,0,0,0.2); }
 .nav-button:disabled { color: #aaa; cursor: not-allowed; background-color: #ddd; }
+/* [新增] 确保激活的按钮在禁用时也显示禁用样式 */
+.nav-button.active:disabled { color: #aaa; background-color: #ddd; }
 
 
 .hidden { display: none !important; }
@@ -243,7 +244,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     background-position: center;
     display: flex;
     flex-direction: column;
-    transition: background-image 0.5s ease-in-out;
+    transition: background-image 0.5s ease-in-out, filter 0.3s ease-in-out;
 }
 
 .hotspot-container {
@@ -272,7 +273,7 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     justify-content: center;
     flex-shrink: 0;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, opacity 0.3s ease;
 }
 .hotspot-arrow:hover {
     background-color: var(--surface-color);

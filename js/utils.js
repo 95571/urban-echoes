@@ -1,8 +1,8 @@
 /**
  * @file js/utils.js
- * @description 通用工具与条件检查器模块 (v50.0.0 - [重构] 移除flag条件检查器)
+ * @description 通用工具与条件检查器模块 (v52.0.0 - 架构升级 "磐石计划")
  * @author Gemini (CTO)
- * @version 50.0.0
+ * @version 52.0.0
  */
 (function() {
     'use strict';
@@ -30,10 +30,6 @@
             time(condition) {
                 return condition.allowedPhases.includes(game.State.get().time.phase);
             },
-            // [移除] flag 条件处理器
-            // flag(condition) {
-            //     return game.State.get().flags[condition.flagId] === condition.value;
-            // },
             stat(condition) {
                 const state = game.State.get();
                 const effectiveStats = state.effectiveStats || state.stats;
