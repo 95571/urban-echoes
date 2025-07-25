@@ -1,15 +1,17 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 叙事UI与自定义弹窗管理器 (v52.0.0 - 架构升级 "磐石计划")
+ * @description UI模块 - 叙事UI与自定义弹窗管理器 (v54.2.0 - [重构] 弹窗系统完全迁移至createElement)
  * @author Gemini (CTO)
- * @version 52.0.0
+ * @version 54.2.0
  */
 (function() {
     'use strict';
     const game = window.game;
     const gameData = window.gameData;
+    const createElement = window.game.UI.createElement;
 
-    // --- 叙事UI管理器 (重构后) ---
+    // --- 叙事UI管理器 (NarrativeManager) ---
+    // （此部分代码未作修改，保持原样）
     const NarrativeManager = {
         init() {
             const dom = game.dom;
@@ -17,7 +19,6 @@
             dom['narrative-ui'].innerHTML = `<div id="narrative-options"></div><div class="narrative-wrapper"><div id="narrative-avatar"></div><div id="narrative-box"><div id="narrative-name"></div><div id="narrative-text"></div><div id="narrative-continue-indicator" class="hidden">▼</div></div></div>`;
             ids.forEach(id => dom[id] = document.getElementById(id));
         },
-
         show(initialDialogueId) {
             return new Promise(resolve => {
                 const initialNode = gameData.dialogues[initialDialogueId];
@@ -26,43 +27,31 @@
                     resolve({ value: false, error: 'Dialogue not found' });
                     return;
                 }
-                
-                game.narrativeContext = {
-                    currentNode: initialNode,
-                    currentSegmentIndex: 0,
-                    resolve,
-                    isWaitingForChoice: false
-                };
-
+                game.narrativeContext = { currentNode: initialNode, currentSegmentIndex: 0, resolve, isWaitingForChoice: false };
                 this.toggleUiElements(true);
                 game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
-
                 const ui = game.dom["narrative-ui"];
                 ui.classList.remove('hidden');
                 setTimeout(() => ui.classList.add('visible'), 10);
                 this.showNextSegment();
             });
         },
-
         hide() {
             if (!game.narrativeContext) return;
             clearTimeout(game.UI.typewriterTimeout);
             game.UI.isTyping = false;
             const ui = game.dom["narrative-ui"];
-            
             ui.classList.remove('visible');
             this.toggleUiElements(false);
-
             setTimeout(() => {
                 ui.classList.add('hidden');
                 game.narrativeContext = null;
                 game.Events.publish(EVENTS.UI_RENDER);
             }, 400); 
         },
-
         toggleUiElements(isNarrativeActive) {
             const dom = game.dom;
-            ['left-panel', 'right-panel', 'bottom-nav'].forEach(id => dom[id]?.classList.toggle('dimmed', isNarrativeActive));
+            ['left-panel', 'main-content', 'bottom-nav'].forEach(id => dom[id]?.classList.toggle('dimmed', isNarrativeActive));
             dom.screen.querySelectorAll('.hotspot-card, .sparkle-hotspot, .hotspot-arrow').forEach(el => {
                 el.style.opacity = isNarrativeActive ? '0' : '1';
                 el.style.pointerEvents = isNarrativeActive ? 'none' : 'all';
@@ -75,7 +64,6 @@
                 }
             }
         },
-
         showNextSegment() {
             const ctx = game.narrativeContext;
             if (!ctx) return;
@@ -88,10 +76,8 @@
                 return;
             }
             if (ctx.isWaitingForChoice) return;
-
             const dialogueText = ctx.currentNode.dialogueText;
             const hasDialogue = Array.isArray(dialogueText) && dialogueText.length > 0;
-            
             if (!hasDialogue || ctx.currentSegmentIndex >= dialogueText.length) {
                 this.showOptions();
                 if (!hasDialogue) {
@@ -101,14 +87,12 @@
                 }
                 return;
             }
-
             const segment = dialogueText[ctx.currentSegmentIndex];
             ctx.currentSegmentIndex++;
             this.updateAvatar(segment.avatar, segment.name);
             game.dom["narrative-continue-indicator"].classList.add('hidden');
             game.UI.typewriter(game.dom["narrative-text"], segment.text.replace(/\n/g, '<br>'), () => this.onSegmentComplete());
         },
-
         onSegmentComplete() {
             const ctx = game.narrativeContext;
             if (!ctx) return;
@@ -119,53 +103,49 @@
                 this.showOptions();
             }
         },
-
         updateAvatar(imageUrl, name) {
             const dom = game.dom;
             dom["narrative-avatar"].style.backgroundImage = `url('${imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')`;
             dom["narrative-name"].textContent = name || '';
             dom["narrative-name"].style.display = name ? 'block' : 'none';
         },
-
         showOptions() {
             const ctx = game.narrativeContext;
             if (!ctx) return;
             ctx.isWaitingForChoice = true;
             game.dom["narrative-continue-indicator"].classList.add('hidden');
             game.dom["narrative-box"].style.cursor = 'default';
-            
             const options = ctx.currentNode.options || [];
             const availableOptions = options.filter(opt => game.ConditionChecker.evaluate(opt.conditions));
-
             if (availableOptions.length === 0) {
                 ctx.resolve({ value: true });
                 this.hide();
                 return;
             }
             const optionsContainer = game.dom["narrative-options"];
-            optionsContainer.innerHTML = availableOptions.map((opt, index) => 
-                `<button data-index="${index}" class="${opt.class || ''}">${opt.text}</button>`
-            ).join('');
-            
-            optionsContainer.querySelectorAll('button').forEach(btn => {
-                btn.onclick = async (e) => {
-                    e.stopPropagation();
-                    const chosenVisibleIndex = parseInt(btn.dataset.index, 10);
-                    const chosenOption = availableOptions[chosenVisibleIndex];
-                    await this.handleChoice(chosenOption);
-                };
+            optionsContainer.innerHTML = ''; // Clear old options
+            availableOptions.forEach((opt, index) => {
+                const btn = createElement('button', {
+                    textContent: opt.text,
+                    className: opt.class || '',
+                    dataset: { index: index },
+                    eventListeners: {
+                        click: async (e) => {
+                            e.stopPropagation();
+                            await this.handleChoice(opt);
+                        }
+                    }
+                });
+                optionsContainer.appendChild(btn);
             });
         },
-
         async handleChoice(chosenOption) {
             const ctx = game.narrativeContext;
             if (!ctx) return;
             game.dom["narrative-options"].innerHTML = '';
-
             if (chosenOption.actionBlock) {
                 await game.Actions.executeActionBlock(chosenOption.actionBlock);
             }
-
             if (chosenOption.transitionTo) {
                 const nextNode = gameData.dialogues[chosenOption.transitionTo];
                 if (nextNode) {
@@ -193,8 +173,8 @@
         }
     };
     
+    // --- 自定义弹窗管理器 (ModalManager) [重构] ---
     const ModalManager = {
-        // ... (ModalManager 的所有代码保持不变, 为简洁此处省略)
         stack: [],
         baseZIndex: 1200,
         async push(modalConfig) {
@@ -237,76 +217,104 @@
             overlay.style.zIndex = zIndex;
             return overlay;
         },
-        createModalFrame(title, contentHtml, actionsHtml) {
-            const overlay = document.createElement('div');
-            overlay.className = 'custom-modal-overlay';
-            overlay.onclick = (e) => { if (e.target === overlay) this.resolveCurrent(null); }; // [修改] 点击遮罩层取消
-            const box = document.createElement('div');
-            box.className = 'custom-modal-box';
-            box.innerHTML = `
-                <h3 class="custom-modal-title">${title}</h3>
-                <div class="custom-modal-content">${contentHtml}</div>
-                ${actionsHtml ? `<div class="custom-modal-actions">${actionsHtml}</div>` : ''}
-            `;
-            overlay.appendChild(box);
+
+        /**
+         * [重构] 创建弹窗基本框架，使用createElement
+         * @param {string} title - 弹窗标题
+         * @param {HTMLElement|Array<HTMLElement>} contentEl - 内容区域的DOM元素或元素数组
+         * @param {HTMLElement|Array<HTMLElement>} [actionsEl] - 动作区域的DOM元素或元素数组
+         * @returns {HTMLElement} 创建好的弹窗遮罩层元素
+         */
+        createModalFrame(title, contentEl, actionsEl) {
+            const contentElements = Array.isArray(contentEl) ? contentEl : [contentEl];
+            const actionsElements = Array.isArray(actionsEl) ? actionsEl : (actionsEl ? [actionsEl] : []);
+
+            const box = createElement('div', { className: 'custom-modal-box' }, [
+                createElement('h3', { className: 'custom-modal-title', textContent: title }),
+                createElement('div', { className: 'custom-modal-content' }, contentElements),
+                actionsElements.length > 0 ? createElement('div', { className: 'custom-modal-actions' }, actionsElements) : null
+            ].filter(Boolean)); // 过滤掉null，避免空actions div
+
+            const overlay = createElement('div', {
+                className: 'custom-modal-overlay',
+                eventListeners: {
+                    click: (e) => { if (e.target === overlay) this.resolveCurrent(null); }
+                }
+            }, [box]);
+            
             return overlay;
         },
+
         createConfirmationDOM(modalConfig) {
             const { title, html, options } = modalConfig.payload;
-            let actionsHtml = (options || []).map(opt =>
-                `<button data-value='${JSON.stringify(opt.value)}' class="${opt.class || ''}">${opt.text}</button>`
-            ).join('');
-            const overlay = this.createModalFrame(title, html, actionsHtml);
-            overlay.querySelectorAll('[data-value]').forEach(btn => {
-                btn.onclick = () => {
-                    const value = JSON.parse(btn.dataset.value);
-                    const option = options.find(o => o.value === value);
-                    this.resolveCurrent({ value: value, originalOption: option });
-                };
-            });
-            return overlay;
+            const content = createElement('div', { innerHTML: html });
+            
+            const actionButtons = (options || []).map(opt =>
+                createElement('button', {
+                    textContent: opt.text,
+                    className: opt.class || '',
+                    eventListeners: {
+                        click: () => this.resolveCurrent({ value: opt.value, originalOption: opt })
+                    }
+                })
+            );
+
+            return this.createModalFrame(title, content, actionButtons);
         },
+
         createCustomModalDOM(modalConfig) {
             const { title, html } = modalConfig.payload;
-            const actionsHtml = `<button class="secondary-action custom-modal-close-btn">关闭</button>`;
-            const overlay = this.createModalFrame(title, html, actionsHtml);
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
-            return overlay;
+            const content = createElement('div', { innerHTML: html });
+            const closeButton = createElement('button', {
+                className: 'secondary-action custom-modal-close-btn',
+                textContent: '关闭',
+                eventListeners: { click: () => this.resolveCurrent(null) }
+            });
+            return this.createModalFrame(title, content, closeButton);
         },
+
         createItemDetailsDOM(modalConfig) {
             const { item, itemData, index, isEquipped, slotId } = modalConfig.payload;
-            const contentHtml = `
-                <div class="item-details-content">
-                    <div class="item-details-image" style="background-image: url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')"></div>
-                    <div class="item-details-info">
-                        <h4>${itemData.name}${item.quantity > 1 ? ` &times;${item.quantity}`: ''}</h4>
-                        <p>${itemData.description}</p>
-                    </div>
-                    <div class="item-details-effects">
-                        <h4>效果</h4>
-                        <div class="item-details-effects-list">
-                            <p>${itemData.useDescription || '该物品没有特殊效果。'}</p>
-                        </div>
-                    </div>
-                </div>`;
-            let actionsHtml = '';
+            
+            const content = createElement('div', { className: 'item-details-content' }, [
+                createElement('div', { className: 'item-details-image', style: { backgroundImage: `url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')` } }),
+                createElement('div', { className: 'item-details-info' }, [
+                    createElement('h4', { textContent: `${itemData.name}${item.quantity > 1 ? ` &times;${item.quantity}`: ''}` }),
+                    createElement('p', { textContent: itemData.description })
+                ]),
+                createElement('div', { className: 'item-details-effects' }, [
+                    createElement('h4', { textContent: '效果' }),
+                    createElement('div', { className: 'item-details-effects-list' }, [
+                        createElement('p', { innerHTML: itemData.useDescription || '该物品没有特殊效果。' })
+                    ])
+                ])
+            ]);
+
+            this.makeListDraggable(content.querySelector('.item-details-effects-list'));
+
+            let actionButtons = [];
             if (isEquipped) {
-                actionsHtml = `<button data-action="unequipItem" data-slot="${slotId}">卸下</button>`;
+                actionButtons.push(createElement('button', { textContent: '卸下', dataset: { action: 'unequipItem', slot: slotId } }));
             } else {
-                if (itemData.type === 'consumable') actionsHtml += `<button data-action="useItem" data-index="${index}">使用</button>`;
-                if (itemData.slot) actionsHtml += `<button data-action="equipItem" data-index="${index}">装备</button>`;
-                actionsHtml += `<button class="danger-button" data-action="dropItem" data-index="${index}">丢弃</button>`;
+                if (itemData.type === 'consumable') actionButtons.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: index } }));
+                if (itemData.slot) actionButtons.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: index } }));
+                actionButtons.push(createElement('button', { textContent: '丢弃', className: 'danger-button', dataset: { action: 'dropItem', index: index } }));
             }
-            actionsHtml += `<button class="secondary-action custom-modal-close-btn">关闭</button>`;
-            const overlay = this.createModalFrame('物品详情', contentHtml, actionsHtml);
-            this.makeListDraggable(overlay.querySelector('.item-details-effects-list'));
-            overlay.querySelectorAll('[data-action]').forEach(btn => btn.addEventListener('click', () => this.hideAll()));
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
-            return overlay;
+            actionButtons.push(createElement('button', { textContent: '关闭', className: 'secondary-action custom-modal-close-btn' }));
+            
+            actionButtons.forEach(btn => btn.addEventListener('click', () => this.hideAll()));
+            actionButtons.find(btn => btn.classList.contains('custom-modal-close-btn')).addEventListener('click', (e) => {
+                e.stopPropagation(); // 防止触发hideAll
+                this.resolveCurrent(null);
+            });
+
+            return this.createModalFrame('物品详情', content, actionButtons);
         },
+        
         createJobBoardDOM(modalConfig) {
             const { title, jobs } = modalConfig.payload;
-            let jobListHtml = '<ul class="job-list">';
+            const jobList = createElement('ul', { className: 'job-list' });
+            
             if (jobs && jobs.length > 0) {
                 const availableJobs = jobs.filter(job => {
                     const jobData = gameData.jobs[job.id];
@@ -315,81 +323,114 @@
                 if (availableJobs.length > 0) {
                     availableJobs.forEach(job => {
                         const jobData = gameData.jobs[job.id];
-                        jobListHtml += `
-                            <li class="job-item" data-job-id="${job.id}">
-                                <h4>${jobData.title}</h4>
-                                <p>报酬: <span class="job-reward">${jobData.reward}</span></p>
-                            </li>`;
+                        const jobItem = createElement('li', {
+                            className: 'job-item',
+                            dataset: { jobId: job.id },
+                            eventListeners: { click: () => game.UI.showJobDetails(job.id) }
+                        }, [
+                            createElement('h4', { textContent: jobData.title }),
+                            createElement('p', { innerHTML: `报酬: <span class="job-reward">${jobData.reward}</span>` })
+                        ]);
+                        jobList.appendChild(jobItem);
                     });
                 } else {
-                    jobListHtml += '<li><p style="padding: 10px; color: var(--text-muted-color);">所有可接的任务都在进行中。</p></li>';
+                    jobList.appendChild(createElement('li', {}, [createElement('p', { textContent: '所有可接的任务都在进行中。', style: { padding: '10px', color: 'var(--text-muted-color)' } })]));
                 }
             } else {
-                jobListHtml += '<li><p>目前没有新的兼职信息。</p></li>';
+                 jobList.appendChild(createElement('li', {}, [createElement('p', { textContent: '目前没有新的兼职信息。' })]));
             }
-            jobListHtml += '</ul>';
-            const overlay = this.createModalFrame(title, `<div class="job-board-content">${jobListHtml}</div>`, `<button class="secondary-action custom-modal-close-btn">关闭</button>`);
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
-            overlay.querySelectorAll('.job-item').forEach(item => {
-                item.onclick = () => game.UI.showJobDetails(item.dataset.jobId);
-            });
-            this.makeListDraggable(overlay.querySelector('.job-list'));
-            return overlay;
+            this.makeListDraggable(jobList);
+            
+            const content = createElement('div', { className: 'job-board-content' }, [jobList]);
+            const closeButton = createElement('button', { textContent: '关闭', className: 'secondary-action', eventListeners: { click: () => this.resolveCurrent(null) } });
+            
+            return this.createModalFrame(title, content, closeButton);
         },
+
         createJobDetailsDOM(modalConfig) {
             const { jobId } = modalConfig.payload;
             const jobData = gameData.jobs[jobId];
-            let contentHtml = `<p>错误：找不到兼职信息。</p>`, requirementsMet = false, requirementsText = '无';
+            let content, actions;
+
             if (jobData) {
-                requirementsMet = game.ConditionChecker.evaluate(jobData.requirements);
-                if (jobData.requirements && jobData.requirements.length > 0) {
-                    requirementsText = jobData.requirements.map(r => r.text).join('，');
-                }
-                contentHtml = `
-                    <div class="job-details-content">
-                        <h4>任务描述</h4><p>${jobData.description}</p>
-                        <h4>任务要求</h4><p style="${!requirementsMet ? 'color: var(--error-color);' : ''}">${requirementsText}</p>
-                        <h4>任务报酬</h4><p><strong>${jobData.reward}</strong></p>
-                    </div>`;
+                const requirementsMet = game.ConditionChecker.evaluate(jobData.requirements);
+                const requirementsText = (jobData.requirements && jobData.requirements.length > 0) 
+                    ? jobData.requirements.map(r => r.text).join('，') 
+                    : '无';
+
+                content = createElement('div', { className: 'job-details-content' }, [
+                    createElement('h4', { textContent: '任务描述' }),
+                    createElement('p', { textContent: jobData.description }),
+                    createElement('h4', { textContent: '任务要求' }),
+                    createElement('p', { textContent: requirementsText, style: { color: !requirementsMet ? 'var(--error-color)' : '' } }),
+                    createElement('h4', { textContent: '任务报酬' }),
+                    createElement('p', {}, [createElement('strong', { textContent: jobData.reward })])
+                ]);
+
+                actions = [
+                    createElement('button', { textContent: '返回', className: 'secondary-action', eventListeners: { click: () => this.pop() } }),
+                    createElement('button', { 
+                        textContent: '接受任务', 
+                        attributes: { disabled: !requirementsMet },
+                        eventListeners: { click: async () => {
+                            await game.Actions.acceptJob(jobId);
+                            this.hideAll();
+                        }}
+                    })
+                ];
+            } else {
+                content = createElement('p', { textContent: '错误：找不到兼职信息。'});
+                actions = [createElement('button', { textContent: '返回', className: 'secondary-action', eventListeners: { click: () => this.pop() } })];
             }
-            const actionsHtml = `<button class="secondary-action custom-modal-back-btn">返回</button><button class="custom-modal-accept-btn" ${!jobData || !requirementsMet ? 'disabled' : ''}>接受任务</button>`;
-            const overlay = this.createModalFrame(jobData ? jobData.title : '兼职详情', contentHtml, actionsHtml);
-            overlay.querySelector('.custom-modal-back-btn').onclick = () => this.pop();
-            const acceptBtn = overlay.querySelector('.custom-modal-accept-btn');
-            if (acceptBtn && jobData) {
-                acceptBtn.onclick = async () => {
-                    await game.Actions.acceptJob(jobId);
-                    this.hideAll();
-                };
-            }
-            return overlay;
+
+            return this.createModalFrame(jobData ? jobData.title : '兼职详情', content, actions);
         },
+
         createQuestDetailsDOM(modalConfig) {
             const { jobData, questInstance, status } = modalConfig.payload;
+            
             let objectivesHtml = '';
             if (status === 'active' && questInstance && questInstance.objectives) {
                 objectivesHtml = `<h4>任务目标</h4><ul>${questInstance.objectives.map(obj => `<li>- ${obj.text} (${obj.current || 0}/${obj.target})</li>`).join('')}</ul>`;
             } else if (status === 'completed') {
-                 objectivesHtml = `<h4>任务目标</h4><p>已完成</p>`;
+                objectivesHtml = `<h4>任务目标</h4><p>已完成</p>`;
             }
-            const contentHtml = `<div class="quest-details-content"><h4>任务描述</h4><p>${jobData.description}</p>${objectivesHtml}<h4>任务报酬</h4><p><strong>${jobData.reward}</strong></p></div>`;
-            const overlay = this.createModalFrame(jobData.title, contentHtml, `<button class="secondary-action custom-modal-close-btn">关闭</button>`);
-            overlay.querySelector('.custom-modal-close-btn').onclick = () => this.resolveCurrent(null);
-            return overlay;
+
+            const content = createElement('div', { 
+                className: 'quest-details-content',
+                innerHTML: `<h4>任务描述</h4><p>${jobData.description}</p>${objectivesHtml}<h4>任务报酬</h4><p><strong>${jobData.reward}</strong></p>`
+            });
+            const closeButton = createElement('button', { textContent: '关闭', className: 'secondary-action', eventListeners: { click: () => this.resolveCurrent(null) } });
+            
+            return this.createModalFrame(jobData.title, content, closeButton);
         },
+
         createQuantityPromptDOM(modalConfig) {
             const { title, max } = modalConfig.payload;
-            const contentHtml = `<div class="quantity-prompt-content"><div class="quantity-prompt-header">${title}</div><div class="quantity-controls"><input type="number" class="quantity-input" value="1" min="1" max="${max}"><input type="range" class="quantity-slider" value="1" min="1" max="${max}"></div></div>`;
-            const actionsHtml = `<button class="quantity-cancel-btn secondary-action">取消</button><button class="quantity-confirm-btn">确认</button>`;
-            const overlay = this.createModalFrame('选择数量', contentHtml, actionsHtml);
-            const input = overlay.querySelector('.quantity-input'), slider = overlay.querySelector('.quantity-slider');
-            const syncValues = (source) => { let value = Math.max(1, Math.min(max, parseInt(source.value, 10) || 1)); input.value = value; slider.value = value; };
+            const input = createElement('input', { className: 'quantity-input', attributes: { type: 'number', value: 1, min: 1, max: max } });
+            const slider = createElement('input', { className: 'quantity-slider', attributes: { type: 'range', value: 1, min: 1, max: max } });
+
+            const syncValues = (source) => {
+                let value = Math.max(1, Math.min(max, parseInt(source.value, 10) || 1));
+                input.value = value;
+                slider.value = value;
+            };
             input.oninput = () => syncValues(input);
             slider.oninput = () => syncValues(slider);
-            overlay.querySelector('.quantity-confirm-btn').onclick = () => this.resolveCurrent(parseInt(input.value, 10));
-            overlay.querySelector('.quantity-cancel-btn').onclick = () => this.resolveCurrent(null);
-            return overlay;
+            
+            const content = createElement('div', { className: 'quantity-prompt-content' }, [
+                createElement('div', { className: 'quantity-prompt-header', textContent: title }),
+                createElement('div', { className: 'quantity-controls' }, [input, slider])
+            ]);
+            
+            const actions = [
+                createElement('button', { textContent: '取消', className: 'secondary-action', eventListeners: { click: () => this.resolveCurrent(null) } }),
+                createElement('button', { textContent: '确认', eventListeners: { click: () => this.resolveCurrent(parseInt(input.value, 10)) } })
+            ];
+
+            return this.createModalFrame('选择数量', content, actions);
         },
+
         makeListDraggable(element) {
             if (!element || element.scrollHeight <= element.clientHeight) { element.classList.remove('is-scrollable'); return; }
             element.classList.add('is-scrollable');
