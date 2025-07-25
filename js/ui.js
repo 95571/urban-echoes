@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v52.1.0 - Bug修复)
+ * @description UI核心模块 (v53.0.0 - [重构] 移除右侧日志，改为滚动信息系统)
  * @author Gemini (CTO)
- * @version 52.1.0
+ * @version 53.0.0
  */
 (function() {
     'use strict';
@@ -10,23 +10,25 @@
     const gameData = window.gameData;
 
     const UI = {
-        // ... (大部分代码不变, 仅修改 registerEventHandlers)
-
         init() {
             const dom = game.dom;
-            const ids = [ "left-panel", "main-content", "right-panel", "message-log", "screen", "bottom-nav", "toast-container", "narrative-ui" ];
+            // [修改] 更新需要缓存的DOM元素ID列表
+            const ids = [
+                "left-panel", "main-content", "screen", "bottom-nav",
+                "toast-container", "narrative-ui", "scrolling-log-container"
+            ];
             ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) dom[id] = el;
             });
 
             this.NarrativeManager.init();
-            this.registerEventHandlers(); 
+            this.registerEventHandlers();
             this.registerDOMListeners();
-            
+
             return ids.every(id => dom[id] !== undefined );
         },
-        
+
         registerEventHandlers() {
             game.Events.subscribe(EVENTS.UI_RENDER, () => this.render());
             game.Events.subscribe(EVENTS.UI_RENDER_BOTTOM_NAV, () => this.renderBottomNav());
@@ -35,8 +37,6 @@
             game.Events.subscribe(EVENTS.STATE_CHANGED, () => this.renderLeftPanel());
             game.Events.subscribe(EVENTS.TIME_ADVANCED, () => this.renderLeftPanel());
             game.Events.subscribe(EVENTS.GAME_LOADED, () => this.render());
-
-            // [修复] 监听存档事件，并刷新System菜单（如果当前正打开）
             game.Events.subscribe(EVENTS.GAME_SAVED, () => {
                 if (game.State.get().gameState === 'MENU' && game.State.get().menu.current === 'SYSTEM') {
                     this.render();
@@ -103,7 +103,6 @@
             });
         },
 
-        // ... (其他所有函数保持不变)
         createFromTemplate(templateId, data) {
             const template = document.getElementById(templateId);
             if (!template) {
@@ -126,7 +125,7 @@
             try {
                 const isTitle = gameState.gameState === 'TITLE';
                 dom['left-panel'].classList.toggle('hidden', isTitle);
-                dom['right-panel'].classList.toggle('hidden', isTitle);
+                // [修改] 不再需要控制 right-panel
                 dom['bottom-nav'].classList.toggle('hidden', isTitle);
 
                 if (!isTitle) {
@@ -143,14 +142,34 @@
             }
         },
 
-        log(message, color = "var(--text-color)") {
-            const dom = game.dom;
-            if (!dom['message-log']) return;
+        /**
+         * [重构] 将日志信息显示为屏幕上的滚动消息。
+         * @param {string} message - 要显示的消息文本 (支持HTML)。
+         * @param {string} [color="var(--text-on-primary-color)"] - 文本颜色。
+         */
+        log(message, color = "var(--text-on-primary-color)") {
+            const container = game.dom['scrolling-log-container'];
+            if (!container) return;
+
+            // 限制最大消息数量，防止刷屏
+            const MAX_LOGS = 5;
+            if (container.children.length >= MAX_LOGS) {
+                container.removeChild(container.firstChild);
+            }
+
             const p = document.createElement("p");
-            p.innerHTML = `<span style="color:${color};">${message}</span>`;
-            dom['message-log'].appendChild(p);
-            dom['message-log'].scrollTop = dom['message-log'].scrollHeight;
-            if (dom['message-log'].children.length > 100) dom['message-log'].removeChild(dom['message-log'].firstChild);
+            p.className = 'log-message';
+            p.style.color = color;
+            p.innerHTML = message;
+
+            container.appendChild(p);
+
+            // 4秒后开始淡出
+            setTimeout(() => {
+                p.classList.add('fade-out');
+                // 动画结束后移除元素
+                p.addEventListener('animationend', () => p.remove());
+            }, 4000);
         },
 
         showToast({ title, text, icon }) {
@@ -261,7 +280,7 @@
             };
             type();
         },
-        
+
         updateSceneBackground(imageUrl) {
             const mapArea = game.dom.screen.querySelector('.map-area');
             if(mapArea) {
@@ -300,8 +319,8 @@
         showDropQuantityPrompt(index) {
             const itemStack = game.State.get().inventory[index];
             const itemData = gameData.items[itemStack.id];
-            if (!itemData) return Promise.resolve(null); 
-            
+            if (!itemData) return Promise.resolve(null);
+
             return this.ModalManager.push({
                 type: 'quantity_prompt',
                 payload: {

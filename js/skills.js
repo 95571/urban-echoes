@@ -1,15 +1,14 @@
 /**
  * @file js/skills.js
- * @description 技能、熟练度与专长模块 (v25.6.0 - [重构] 适配新的属性计算流程)
+ * @description 技能、熟练度与专长模块 (v52.0.0 - 架构升级 "磐石计划")
  * @author Gemini (CTO)
- * @version 25.6.0
+ * @version 52.0.0
  */
 (function() {
     'use strict';
     const game = window.game;
     const gameData = window.gameData;
 
-    // --- 熟练度管理 ---
     const Proficiency = {
         getRequiredForLevel(skillId, level) {
             const skillData = gameData.skillLibrary[skillId];
@@ -27,7 +26,7 @@
             if(skillState.level >= 100) return;
             const skillData = gameData.skillLibrary[skillId];
             skillState.proficiency += baseAmount;
-            game.UI.log(`[${skillData.name}] 熟练度 +${baseAmount}`, 'var(--skill-color)');
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `[${skillData.name}] 熟练度 +${baseAmount}`, color: 'var(--skill-color)' });
             let leveledUp;
             do { leveledUp = this.checkAndProcessLevelUp(skillId); } while (leveledUp);
         },
@@ -38,31 +37,31 @@
             if (skillState.proficiency >= requiredProficiency) {
                 skillState.level++;
                 skillState.proficiency -= requiredProficiency;
-                game.UI.log(`⭐ [${gameData.skillLibrary[skillId].name}] 等级提升至 ${skillState.level}！`, 'var(--primary-color)');
-                const perksToUnlock = gameData.skillLibrary[skillId].perkTree[skillState.level];
+                const skillData = gameData.skillLibrary[skillId];
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `⭐ [${skillData.name}] 等级提升至 ${skillState.level}！`, color: 'var(--primary-color)' });
+                const perksToUnlock = skillData.perkTree[skillState.level];
                 if (perksToUnlock) {
                     perksToUnlock.forEach(perkId => {
                         if (!skillState.unlockedPerks.includes(perkId)) {
                             skillState.unlockedPerks.push(perkId);
                             const perkData = gameData.perkLibrary[perkId];
-                            game.UI.log(`🌟 你已精通专长：[${perkData.name}]！`, 'var(--primary-color)');
+                            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `🌟 你已精通专长：[${perkData.name}]！`, color: 'var(--primary-color)' });
                         }
                     });
                 }
                 game.State.updateAllStats(false);
+                game.Events.publish(EVENTS.STATE_CHANGED);
                 return true;
             }
             return false;
         }
     };
 
-    // --- 专长管理 ---
     const Perk = {
-        // [重构] 该函数现在直接修改传入的 effectiveStats 对象
         applyPassiveEffects(unit, effectiveStats) {
+            // ... (此函数逻辑不变)
             if (!gameData.perkLibrary || !unit.skillState) return;
             
-            // 1. 应用技能等级带来的被动加成
             for (const skillId in unit.skillState) {
                 const skillState = unit.skillState[skillId];
                 const skillData = gameData.skillLibrary[skillId];
@@ -73,7 +72,6 @@
                 }
             }
             
-            // 2. 应用已解锁专长带来的被动加成
             for (const skillId in unit.skillState) {
                 const skillState = unit.skillState[skillId];
                 if (skillState.unlockedPerks && skillState.unlockedPerks.length > 0) {
@@ -89,7 +87,6 @@
         }
     };
 
-    // 挂载到全局 game 对象
     game.Proficiency = Proficiency;
     game.Perk = Perk;
 
