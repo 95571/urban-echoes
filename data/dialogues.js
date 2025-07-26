@@ -1,6 +1,6 @@
 /**
  * @file data/dialogues.js
- * @description 游戏内容 - 扁平化对话节点 (v52.3.0 - 完成迁移)
+ * @description 游戏内容 - 扁平化对话节点 (v52.3.1 - [优化] 调整日志颜色)
  */
 window.gameData.dialogues = {
     // --- 妈妈的对话 ---
@@ -24,7 +24,7 @@ window.gameData.dialogues = {
     // --- 新手礼包 ---
     "DIALOGUE_NEWBIE_PACK_OPEN": {
         dialogueText: [{ avatar: 'images/item_newbie_pack.png', text: '这是一个新手大礼包，打开它吧！' }],
-        options: [ { text: '打开', actionBlock: [ { action: { type: 'log', payload: { text: '你打开了新手大礼包，获得了一整套新手装备！', color: 'var(--success-color)' } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.WOOD_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.BASEBALL_CAP, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.TSHIRT, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.JEANS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.RUNNERS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.CLOVER, quantity: 1 } } } ] } ]
+        options: [ { text: '打开', actionBlock: [ { action: { type: 'log', payload: { text: '你打开了新手大礼包，获得了一整套新手装备！', color: 'var(--log-color-success)' } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.WOOD_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.BASEBALL_CAP, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.TSHIRT, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.JEANS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.RUNNERS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.CLOVER, quantity: 1 } } } ] } ]
     },
 
     // --- 电梯 ---
@@ -40,11 +40,11 @@ window.gameData.dialogues = {
     },
     "DIALOGUE_NODE_BUS_STATION": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', name: '售票员', text: '你要去哪里？' }],
-        options: [ { text: `回老家 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [ { action: { type: 'log', payload: { text: '你坐上了长途汽车...' } } }, { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, { action: { type: 'map_transition', payload: { targetMapId: "hometown", targetStartNode: "map_node_hometown_station" } } }, { action: { type: 'log', payload: { text: '经过一路奔波，你抵达了新的地方。', color: 'var(--primary-color)' } } } ]}, { text: '我再想想' } ]
+        options: [ { text: `回老家 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [ { action: { type: 'log', payload: { text: '你坐上了长途汽车...' } } }, { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, { action: { type: 'map_transition', payload: { targetMapId: "hometown", targetStartNode: "map_node_hometown_station" } } }, { action: { type: 'log', payload: { text: '经过一路奔波，你抵达了新的地方。', color: 'var(--log-color-primary)' } } } ]}, { text: '我再想想' } ]
     },
     "DIALOGUE_NODE_HOMETOWN_STATION": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '准备回杭城吗？' }],
-        options: [ { text: `返回杭城 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [ { action: { type: 'log', payload: { text: '你坐上了返回杭城的汽车...' } } }, { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, { action: { type: 'map_transition', payload: { targetMapId: "hangcheng", targetStartNode: "map_node_bus_station" } } }, { action: { type: 'log', payload: { text: '经过一路奔波，你回到了杭城。', color: 'var(--primary-color)' } } } ]}, { text: '在老家再待会儿' } ]
+        options: [ { text: `返回杭城 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [ { action: { type: 'log', payload: { text: '你坐上了返回杭城的汽车...' } } }, { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, { action: { type: 'map_transition', payload: { targetMapId: "hangcheng", targetStartNode: "map_node_bus_station" } } }, { action: { type: 'log', payload: { text: '经过一路奔波，你回到了杭城。', color: 'var(--log-color-primary)' } } } ]}, { text: '在老家再待会儿' } ]
     },
     "DIALOGUE_NODE_MARKET": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '老家的菜市场，充满了烟火气。' }],

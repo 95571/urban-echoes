@@ -1,9 +1,9 @@
 /**
  * @file js/dom_utils.js
- * @description UI模块 - DOM元素创建工具 (v54.0.0)
+ * @description UI模块 - DOM元素创建工具 (v54.1.0 - [修复] 修正自定义CSS属性设置)
  * @description [新增] 为解决HTML字符串拼接问题，引入组件化思想的基石。
  * @author Gemini (CTO)
- * @version 54.0.0
+ * @version 54.1.0
  */
 (function() {
     'use strict';
@@ -16,7 +16,7 @@
      * - id: 元素的ID。
      * - textContent: 元素的文本内容。
      * - innerHTML: 元素的内部HTML。
-     * - style: 一个包含CSS属性的对象 (例如, { color: 'red', backgroundColor: '#fff' })。
+     * - style: 一个包含CSS属性的对象 (例如, { color: 'red', '--custom-color': '#fff' })。
      * - dataset: 一个包含data-*属性的对象 (例如, { action: 'save', slot: '1' })。
      * - attributes: 一个包含其他HTML属性的对象 (例如, { type: 'text', disabled: true })。
      * - eventListeners: 一个包含事件监听器的对象 (例如, { click: (e) => console.log('clicked') })。
@@ -32,7 +32,14 @@
         if (options.innerHTML) el.innerHTML = options.innerHTML;
 
         if (options.style) {
-            Object.assign(el.style, options.style);
+            // [修复] 迭代样式对象以正确设置标准属性和自定义属性
+            for (const prop in options.style) {
+                if (prop.startsWith('--')) {
+                    el.style.setProperty(prop, options.style[prop]);
+                } else {
+                    el.style[prop] = options.style[prop];
+                }
+            }
         }
 
         if (options.dataset) {

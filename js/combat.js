@@ -1,8 +1,8 @@
 /**
  * @file js/combat.js
- * @description 战斗系统模块 (v52.2.0 - Bug修复)
+ * @description 战斗系统模块 (v52.2.1 - [优化] 调整日志颜色)
  * @author Gemini (CTO)
- * @version 52.2.0
+ * @version 52.2.1
  */
 (function() {
     'use strict';
@@ -123,7 +123,8 @@
             const cs = game.State.get().combatState;
             if (!cs) return;
             cs.isWaitingForPlayerInput = true;
-            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('playerTurn'), color: "var(--primary-color)" });
+            // [修改] 使用新的高亮日志颜色
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('playerTurn'), color: "var(--log-color-primary)" });
             game.Events.publish(EVENTS.UI_RENDER);
         },
 
@@ -206,7 +207,8 @@
             }
             const baseFleeChance = 0.5 + ((gameState.effectiveStats.lck - 5) * 0.05);
             if (Math.random() < baseFleeChance) {
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeSuccess'), color: 'var(--success-color)' });
+                // [修改] 使用新的高亮日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeSuccess'), color: 'var(--log-color-success)' });
                 this.end('fled');
             } else {
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeFail'), color: 'var(--error-color)' });
@@ -276,16 +278,13 @@
                     mainPlayerState.mp = defender.mp;
                 }
 
-                // [修复] 移除对不存在的 game.UI.updateCombatantUI 的调用
-                // if(document.getElementById(defender.combatId)) {
-                //     game.UI.updateCombatantUI(defender);
-                // }
-
                 if (defender.type === 'player') {
                     game.Events.publish(EVENTS.STATE_CHANGED);
                 }
-
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('attackDamage', { attackerName: attacker.name, defenderName: defender.name, damage: damage }), color: attacker.type === 'enemy' ? 'var(--error-color)' : 'var(--success-color)' });
+                
+                // [修改] 玩家攻击成功时，使用新的高亮日志颜色
+                const messageColor = attacker.type === 'enemy' ? 'var(--error-color)' : 'var(--log-color-success)';
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('attackDamage', { attackerName: attacker.name, defenderName: defender.name, damage: damage }), color: messageColor });
 
                 if (defender.hp === 0) {
                     game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unitDefeated', { unitName: defender.name }), color: 'var(--text-muted-color)' });
@@ -310,11 +309,12 @@
             } else {
                 message = '';
             }
-
+            
+            // [修改] 战斗胜利时，使用新的高亮日志颜色
             const logMessage = outcome === 'win' ? game.Utils.formatMessage('combatWin') :
                                outcome === 'loss' ? game.Utils.formatMessage('combatLoss') :
                                '';
-            const logColor = outcome === 'win' ? 'var(--success-color)' : 'var(--error-color)';
+            const logColor = outcome === 'win' ? 'var(--log-color-success)' : 'var(--error-color)';
             if (logMessage) game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: logMessage, color: logColor });
 
             if (outcome !== 'fled' && message) {

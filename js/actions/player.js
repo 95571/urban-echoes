@@ -1,6 +1,6 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 动作模块 - 玩家动作 (v52.1.0 - [优化] 调整日志颜色)
  */
 (function() {
     'use strict';
@@ -20,7 +20,6 @@
                 await this.executeActionBlock(itemData.onUseActionBlock);
             }
 
-            // 移除物品的逻辑现在更健壮
             const itemIndex = gameState.inventory.findIndex(i => i.id === itemStack.id && i === itemStack);
             if (itemIndex > -1) {
                 gameState.inventory[itemIndex].quantity--;
@@ -29,8 +28,8 @@
                 }
             }
 
-            game.Events.publish(EVENTS.STATE_CHANGED); // 发布状态变更事件
-            game.Events.publish(EVENTS.UI_RENDER); // 请求重绘，以防万一（例如更新物品列表）
+            game.Events.publish(EVENTS.STATE_CHANGED);
+            game.Events.publish(EVENTS.UI_RENDER);
         },
 
         equipItem(index) {
@@ -46,7 +45,7 @@
                 return;
             }
             if (targetSlot.itemId) {
-                this.unequipItem(slotId, true); // 内部调用，不触发渲染
+                this.unequipItem(slotId, true);
             }
             targetSlot.itemId = itemStack.id;
             itemStack.quantity--;
@@ -64,7 +63,7 @@
             const targetSlot = gameState.equipped[slotId];
             if (!targetSlot || !targetSlot.itemId) return;
             const itemToUnequipId = targetSlot.itemId;
-            this.addItemToInventory(itemToUnequipId, 1, true); // 内部调用，不触发渲染
+            this.addItemToInventory(itemToUnequipId, 1, true);
             targetSlot.itemId = null;
             if (!internal) {
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }) });
@@ -106,7 +105,6 @@
                     game.Events.publish(EVENTS.STATE_CHANGED);
                     game.Events.publish(EVENTS.UI_RENDER);
                 } else {
-                    // 用户取消了弹窗，也需要刷新底部导航栏状态
                     game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
                 }
             } else {
@@ -130,7 +128,8 @@
             if (!itemData) return;
             
             if (!internal) {
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('getItemLoot', { itemName: itemData.name, quantity: q}), color: 'var(--success-color)' });
+                // [修改] 使用新的高亮日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('getItemLoot', { itemName: itemData.name, quantity: q}), color: 'var(--log-color-success)' });
             }
 
             const existingStack = gameState.inventory.find(i => i.id === id); 
@@ -183,7 +182,8 @@
                 sourceJobId: jobId,
                 objectives: JSON.parse(JSON.stringify(jobData.objectives || []))
             };
-            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), color: 'var(--primary-color)' });
+            // [修改] 使用新的高亮日志颜色
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), color: 'var(--log-color-primary)' });
         },
         playerCombatAttack() { game.Combat.playerAttack(); },
         playerCombatDefend() { game.Combat.playerDefend(); },

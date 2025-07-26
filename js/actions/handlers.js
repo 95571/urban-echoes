@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 动作模块 - ActionBlock执行器 (v52.1.1 - [完成] 统一所有日志颜色)
  */
 (function() {
     'use strict';
@@ -15,16 +15,14 @@
             const maxHp = state.maxHp;
             const maxMp = state.maxMp;
             game.State.applyEffect({ hp: maxHp, mp: maxMp });
-            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fullHeal'), color: 'var(--success-color)' });
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fullHeal'), color: 'var(--log-color-success)' });
         }
     };
 
     const actionHandlers = {
-        // [重构] 发布事件，而不是直接调用UI
         log({ text, color }) { game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: text, color: color }); },
         show_toast(payload) { game.Events.publish(EVENTS.UI_SHOW_TOAST, payload); },
         
-        // [新增] 启动扁平化对话节点的动作
         start_dialogue(payload) { return game.UI.showNarrative(payload.dialogueId); },
 
         effect(payload) { game.State.applyEffect(payload); },
@@ -84,7 +82,8 @@
                 while(time.phase >= phasesInDay) {
                     time.phase -= phasesInDay;
                     time.day++;
-                    this.log({ text: game.Utils.formatMessage('newDay'), color: "var(--secondary-color)" });
+                    // [修改] 将这里的颜色修正为高亮信息蓝
+                    this.log({ text: game.Utils.formatMessage('newDay'), color: "var(--log-color-primary)" });
                     const daysInMonth = new Date(time.year, time.month, 0).getDate();
                     if(time.day > daysInMonth) {
                         time.day = 1; time.month++;

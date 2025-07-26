@@ -1,8 +1,8 @@
 /**
  * @file js/save_load.js
- * @description 游戏存读档模块 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 游戏存读档模块 (v52.1.0 - [优化] 调整日志颜色)
  * @author Gemini (CTO)
- * @version 52.0.0
+ * @version 52.1.0
  */
 (function() {
     'use strict';
@@ -37,8 +37,9 @@
                 localStorage.setItem(game.SAVE_KEY_PREFIX + slot, JSON.stringify(stateToSave));
                 localStorage.setItem(game.SAVE_META_KEY, JSON.stringify(meta));
                 
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameSaved', { slot: slot }), color: 'var(--success-color)' });
-                game.Events.publish(EVENTS.GAME_SAVED); // 发布事件
+                // [修改] 使用新的高亮日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameSaved', { slot: slot }), color: 'var(--log-color-success)' });
+                game.Events.publish(EVENTS.GAME_SAVED);
 
             } catch (e) { 
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('errorSaveGame'), color: "var(--error-color)" });
@@ -59,10 +60,10 @@
                     game.state = savedState;
                     game.State.updateAllStats(true);
                     
-                    // [重构] 发布游戏读取事件，UI模块会监听并重新渲染
                     game.Events.publish(EVENTS.GAME_LOADED); 
                     
-                    game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameLoaded', { slot: slot }), color: 'var(--primary-color)' });
+                    // [修改] 使用新的高亮日志颜色
+                    game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameLoaded', { slot: slot }), color: 'var(--log-color-primary)' });
 
                 } catch (e) { 
                     game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('errorLoadGame'), color: "var(--error-color)" }); 

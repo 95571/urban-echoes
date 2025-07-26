@@ -1,6 +1,6 @@
 /**
  * @file js/actions/system.js
- * @description 动作模块 - 系统流程控制 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 动作模块 - 系统流程控制 (v52.1.0 - [优化] 调整日志颜色)
  */
 (function() {
     'use strict';
@@ -62,8 +62,9 @@
                         localStorage.setItem(game.SAVE_KEY_PREFIX + slot, JSON.stringify(saveData));
                         localStorage.setItem(game.SAVE_META_KEY, JSON.stringify(meta));
                         
-                        game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameImported', { slot: slot }), color: 'var(--success-color)' });
-                        game.Events.publish(EVENTS.GAME_SAVED); // 发布事件通知UI刷新（例如SYSTEM菜单）
+                        // [修改] 使用新的高亮日志颜色
+                        game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameImported', { slot: slot }), color: 'var(--log-color-success)' });
+                        game.Events.publish(EVENTS.GAME_SAVED);
 
                         game.UI.ModalManager.hideAll();
                         this.showLoadScreen();
@@ -119,7 +120,8 @@
                 a.download = fileName;
                 a.click();
                 URL.revokeObjectURL(a.href);
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameExported', { slot: slot }), color: 'var(--primary-color)' });
+                // [修改] 使用新的高亮日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameExported', { slot: slot }), color: 'var(--log-color-primary)' });
             } catch(e) {
                 console.error("Export save failed:", e);
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: "导出存档失败！", color: "var(--error-color)" });

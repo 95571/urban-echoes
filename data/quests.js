@@ -1,6 +1,6 @@
 /**
  * @file data/quests.js
- * @description 游戏内容 - 任务与兼职 (v44.0.0 - [新增] isMain 任务类型标识)
+ * @description 游戏内容 - 任务与兼职 (v44.0.1 - [优化] 调整日志颜色)
  */
 window.gameData.jobs = {
     "job_flyer": {
@@ -90,7 +90,7 @@ window.gameData.jobs = {
             } } },
             { action: { type: 'log', payload: { text: '姥姥高兴地接过了排骨，走进了厨房。不一会儿，香喷喷的红烧排骨就出锅了！' } } },
             { action: { type: 'effect', payload: { hp: 50, mp: 50 } } },
-            { action: { type: 'log', payload: { text: '你吃得心满意足，感觉浑身充满了力量。' , color: 'var(--success-color)'} } },
+            { action: { type: 'log', payload: { text: '你吃得心满意足，感觉浑身充满了力量。' , color: 'var(--log-color-success)'} } },
             { action: { type: 'modify_variable', payload: { varId: 'q_buy_ribs', operation: 'set', value: 2 } } }
         ]
     }

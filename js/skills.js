@@ -1,8 +1,8 @@
 /**
  * @file js/skills.js
- * @description 技能、熟练度与专长模块 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 技能、熟练度与专长模块 (v52.1.0 - [优化] 调整日志颜色)
  * @author Gemini (CTO)
- * @version 52.0.0
+ * @version 52.1.0
  */
 (function() {
     'use strict';
@@ -38,14 +38,16 @@
                 skillState.level++;
                 skillState.proficiency -= requiredProficiency;
                 const skillData = gameData.skillLibrary[skillId];
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `⭐ [${skillData.name}] 等级提升至 ${skillState.level}！`, color: 'var(--primary-color)' });
+                // [修改] 使用新的高亮日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `⭐ [${skillData.name}] 等级提升至 ${skillState.level}！`, color: 'var(--log-color-primary)' });
                 const perksToUnlock = skillData.perkTree[skillState.level];
                 if (perksToUnlock) {
                     perksToUnlock.forEach(perkId => {
                         if (!skillState.unlockedPerks.includes(perkId)) {
                             skillState.unlockedPerks.push(perkId);
                             const perkData = gameData.perkLibrary[perkId];
-                            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `🌟 你已精通专长：[${perkData.name}]！`, color: 'var(--primary-color)' });
+                            // [修改] 使用新的高亮日志颜色
+                            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `🌟 你已精通专长：[${perkData.name}]！`, color: 'var(--log-color-primary)' });
                         }
                     });
                 }
@@ -59,7 +61,6 @@
 
     const Perk = {
         applyPassiveEffects(unit, effectiveStats) {
-            // ... (此函数逻辑不变)
             if (!gameData.perkLibrary || !unit.skillState) return;
             
             for (const skillId in unit.skillState) {

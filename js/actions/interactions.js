@@ -1,6 +1,6 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 动作模块 - 场景与对话交互 (v52.1.0 - [优化] 调整日志颜色)
  */
 (function() {
     'use strict';
@@ -31,7 +31,8 @@
             if (sequenceId === 'character_creation') {
                 game.State.updateAllStats(true);
                 game.State.setUIMode('EXPLORE');
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameWelcome', { playerName: gameState.name }), color: 'var(--primary-color)' });
+                // [修改] 使用新的高亮日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameWelcome', { playerName: gameState.name }), color: 'var(--log-color-primary)' });
             } else {
                 game.State.setUIMode('EXPLORE');
             }
@@ -107,7 +108,6 @@
                 return;
             }
             
-            // [重构] 交互处理器现在更通用
             const interactionHandlers = {
                 async start_dialogue(payload) {
                     if (payload && payload.dialogueId) await game.UI.showNarrative(payload.dialogueId);

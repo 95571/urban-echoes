@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 叙事UI与自定义弹窗管理器 (v54.2.0 - [重构] 弹窗系统完全迁移至createElement)
+ * @description UI模块 - 叙事UI与自定义弹窗管理器 (v54.3.1 - [重构] 调整弹窗挂载点)
  * @author Gemini (CTO)
- * @version 54.2.0
+ * @version 54.3.1
  */
 (function() {
     'use strict';
@@ -183,7 +183,8 @@
                 const newModalEl = this.createModalElement(modalConfig, this.stack.length);
                 modalConfig.domElement = newModalEl;
                 this.stack.push(modalConfig);
-                document.body.appendChild(newModalEl);
+                // [修改] 挂载到主内容区，而不是body
+                game.dom['main-content'].appendChild(newModalEl);
                 setTimeout(() => newModalEl.classList.add('visible'), 10);
             });
         },
@@ -218,13 +219,6 @@
             return overlay;
         },
 
-        /**
-         * [重构] 创建弹窗基本框架，使用createElement
-         * @param {string} title - 弹窗标题
-         * @param {HTMLElement|Array<HTMLElement>} contentEl - 内容区域的DOM元素或元素数组
-         * @param {HTMLElement|Array<HTMLElement>} [actionsEl] - 动作区域的DOM元素或元素数组
-         * @returns {HTMLElement} 创建好的弹窗遮罩层元素
-         */
         createModalFrame(title, contentEl, actionsEl) {
             const contentElements = Array.isArray(contentEl) ? contentEl : [contentEl];
             const actionsElements = Array.isArray(actionsEl) ? actionsEl : (actionsEl ? [actionsEl] : []);
@@ -233,7 +227,7 @@
                 createElement('h3', { className: 'custom-modal-title', textContent: title }),
                 createElement('div', { className: 'custom-modal-content' }, contentElements),
                 actionsElements.length > 0 ? createElement('div', { className: 'custom-modal-actions' }, actionsElements) : null
-            ].filter(Boolean)); // 过滤掉null，避免空actions div
+            ].filter(Boolean));
 
             const overlay = createElement('div', {
                 className: 'custom-modal-overlay',
@@ -304,7 +298,7 @@
             
             actionButtons.forEach(btn => btn.addEventListener('click', () => this.hideAll()));
             actionButtons.find(btn => btn.classList.contains('custom-modal-close-btn')).addEventListener('click', (e) => {
-                e.stopPropagation(); // 防止触发hideAll
+                e.stopPropagation();
                 this.resolveCurrent(null);
             });
 
@@ -367,17 +361,23 @@
                     createElement('p', {}, [createElement('strong', { textContent: jobData.reward })])
                 ]);
 
+                const acceptButtonConfig = {
+                    textContent: '接受任务',
+                    eventListeners: { click: async () => {
+                        await game.Actions.acceptJob(jobId);
+                        this.hideAll();
+                    }}
+                };
+
+                if (!requirementsMet) {
+                    acceptButtonConfig.attributes = { disabled: true };
+                }
+                
                 actions = [
                     createElement('button', { textContent: '返回', className: 'secondary-action', eventListeners: { click: () => this.pop() } }),
-                    createElement('button', { 
-                        textContent: '接受任务', 
-                        attributes: { disabled: !requirementsMet },
-                        eventListeners: { click: async () => {
-                            await game.Actions.acceptJob(jobId);
-                            this.hideAll();
-                        }}
-                    })
+                    createElement('button', acceptButtonConfig)
                 ];
+
             } else {
                 content = createElement('p', { textContent: '错误：找不到兼职信息。'});
                 actions = [createElement('button', { textContent: '返回', className: 'secondary-action', eventListeners: { click: () => this.pop() } })];
