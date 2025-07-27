@@ -1,6 +1,6 @@
 /**
  * @file data/items.js
- * @description 游戏内容 - 物品与装备 (v52.1.0 - Bug修复)
+ * @description 游戏内容 - 物品与装备 (v55.2.1 - [新增] 治疗剂)
  */
 window.gameData.items = {
     "item_phone": { 
@@ -16,7 +16,6 @@ window.gameData.items = {
         droppable: false,
         imageUrl: 'images/item_newbie_pack.png',
         useDescription: "一个为新人准备的神秘礼包。",
-        // [修复] 将旧的show_dialogue改为标准的start_dialogue动作
         onUseActionBlock: [
             { action: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NEWBIE_PACK_OPEN" } } }
         ]
@@ -28,8 +27,18 @@ window.gameData.items = {
         imageUrl: 'images/item_energy_drink.png',
         useDescription: "饮用后，能快速补充大量精力，但会稍微损害健康。",
         onUseActionBlock: [
-            { action: { type: 'log', payload: { text: '你喝下功能饮料，感觉精力充沛，但心脏有些不舒服。', color: 'var(--primary-color)' } } },
-            { action: { type: 'effect', payload: { mp: 40, hp: -5 } } }
+            { action: { type: 'add_effect', payload: { effectId: 'eff_energy_boost' } } }
+        ]
+    },
+    // [新增] 长效治疗剂
+    "item_healing_agent_long": {
+        name: "长效治疗剂", type: "consumable",
+        description: "一支缓释型治疗针剂，能在一段时间内持续促进身体恢复。",
+        droppable: true,
+        imageUrl: 'images/item_healing_agent.png', // 假设我们有这张图
+        useDescription: "使用后，在接下来的一段时间里持续恢复你的健康。",
+        onUseActionBlock: [
+            { action: { type: 'add_effect', payload: { effectId: 'eff_regeneration' } } }
         ]
     },
     "item_salted_fish": {

@@ -189,38 +189,93 @@
             const dom = game.dom;
             const gameState = game.State.get();
             const effectiveStats = gameState.effectiveStats || gameState.stats;
+
             if (!this.isLeftPanelInitialized) {
                 dom['left-panel'].innerHTML = `
                     <div class="player-avatar" id="left-panel-avatar"></div>
-                    <div class="player-info-main">
+                    <div class="panel-info-group">
                         <div class="player-name" id="left-panel-player-name"></div>
-                        <div class="player-gold" title="金钱">${gameData.icons.gold} <span id="left-panel-gold"></span></div>
+                        <div class="player-gold" id="left-panel-gold"></div>
                     </div>
-                    <div class="game-time-container" id="left-panel-time-container">
-                        <div class="game-time" id="left-panel-time"></div>
-                        <div class="game-date" id="left-panel-date"></div>
+                    <div class="panel-info-group">
+                         <div class="game-date" id="left-panel-date"></div>
+                         <div class="game-time" id="left-panel-time"></div>
                     </div>
                     <div class="resource-bars-container">
-                        <div class="resource-bar top-hp-bar" id="left-panel-hp-bar"><div class="resource-bar-fill hp-fill" id="left-panel-hp-fill"></div><span class="resource-bar-text">健康</span></div>
-                        <div class="resource-bar top-mp-bar" id="left-panel-mp-bar"><div class="resource-bar-fill mp-fill" id="left-panel-mp-fill"></div><span class="resource-bar-text">精力</span></div>
+                        <div class="resource-bar hp-bar" id="left-panel-hp-bar">
+                            <div class="resource-bar-fill" id="left-panel-hp-fill"></div>
+                            <div class="resource-bar-text" id="left-panel-hp-text"></div>
+                        </div>
+                        <div class="resource-bar mp-bar" id="left-panel-mp-bar">
+                            <div class="resource-bar-fill" id="left-panel-mp-fill"></div>
+                            <div class="resource-bar-text" id="left-panel-mp-text"></div>
+                        </div>
                     </div>
-                    <div class="primary-stats-bar" id="left-panel-stats"></div>`;
-                const idsToCache = ['left-panel-avatar', 'left-panel-player-name', 'left-panel-gold', 'left-panel-time-container', 'left-panel-time', 'left-panel-date', 'left-panel-hp-bar', 'left-panel-mp-bar', 'left-panel-hp-fill', 'left-panel-mp-fill', 'left-panel-stats'];
+                    <div class="primary-stats-container" id="left-panel-stats"></div>
+                    <div class="effects-container" id="left-panel-effects"></div> `;
+                
+                const idsToCache = [
+                    'left-panel-avatar', 'left-panel-player-name', 'left-panel-gold', 
+                    'left-panel-date', 'left-panel-time', 
+                    'left-panel-hp-bar', 'left-panel-hp-fill', 'left-panel-hp-text',
+                    'left-panel-mp-bar', 'left-panel-mp-fill', 'left-panel-mp-text',
+                    'left-panel-stats', 'left-panel-effects' // [新增] 缓存效果容器
+                ];
                 idsToCache.forEach(id => dom[id] = document.getElementById(id));
                 this.isLeftPanelInitialized = true;
             }
-            const { name, hp, maxHp, mp, maxMp, time, gold } = gameState;
-            const timeString = `${gameData.settings.weekDays[new Date(time.year, time.month - 1, time.day).getDay()]} ${gameData.settings.timePhases[time.phase]}`;
+
+            const { name, hp, maxHp, mp, maxMp, time, gold, activeEffects } = gameState;
+            
             dom['left-panel-avatar'].innerHTML = this.getAvatarHtml(gameState);
             dom['left-panel-player-name'].textContent = name;
-            dom['left-panel-gold'].textContent = gold;
-            dom['left-panel-time'].textContent = timeString;
+            dom['left-panel-gold'].innerHTML = `${gameData.icons.gold} ${gold}`;
+
             dom['left-panel-date'].textContent = `${time.year}年${time.month}月${time.day}日`;
+            dom['left-panel-time'].textContent = `${gameData.settings.weekDays[new Date(time.year, time.month - 1, time.day).getDay()]} ${gameData.settings.timePhases[time.phase]}`;
+            
             dom['left-panel-hp-bar'].title = `健康: ${Math.ceil(hp)} / ${maxHp}`;
             dom['left-panel-hp-fill'].style.width = (maxHp > 0 ? (hp / maxHp) * 100 : 0) + '%';
+            dom['left-panel-hp-text'].innerHTML = `<span>${gameData.icons.health}</span> ${Math.ceil(hp)} / ${maxHp}`;
+
             dom['left-panel-mp-bar'].title = `精力: ${Math.ceil(mp)} / ${maxMp}`;
             dom['left-panel-mp-fill'].style.width = (maxMp > 0 ? (mp / maxMp) * 100 : 0) + '%';
-            dom['left-panel-stats'].innerHTML = Object.entries({ str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运' }).map(([key, statName]) => `<div class="primary-stat" title="${statName}">${gameData.icons[key]} ${effectiveStats[key]}</div>`).join('');
+            dom['left-panel-mp-text'].innerHTML = `<span>${gameData.icons.energy}</span> ${Math.ceil(mp)} / ${maxMp}`;
+
+            const statsContainer = dom['left-panel-stats'];
+            statsContainer.innerHTML = ''; // Clear old stats
+            for (const key in gameData.statNames) {
+                const statName = gameData.statNames[key];
+                const statEl = document.createElement('div');
+                statEl.className = 'primary-stat';
+                statEl.innerHTML = `
+                    <span class="stat-icon">${gameData.icons[key]}</span>
+                    <span class="stat-name">${statName}</span>
+                    <span class="stat-value">${effectiveStats[key]}</span>`;
+                statsContainer.appendChild(statEl);
+            }
+
+            // [新增] 渲染当前状态效果
+            const effectsContainer = dom['left-panel-effects'];
+            effectsContainer.innerHTML = '';
+            const visibleEffects = activeEffects.filter(effect => !effect.isHidden);
+            if (visibleEffects.length > 0) {
+                 effectsContainer.innerHTML = '<h4 class="panel-section-title">当前状态</h4>';
+                 const effectsGrid = document.createElement('div');
+                 effectsGrid.className = 'effects-grid';
+                 visibleEffects.forEach(effect => {
+                    const durationText = effect.duration === -1 ? '永久' : `剩余${effect.duration}时段`;
+                    const effectEl = document.createElement('div');
+                    effectEl.className = `effect-entry ${effect.type || 'buff'}`;
+                    effectEl.title = `${effect.name}\n${effect.description}\n(${durationText})`;
+                    effectEl.innerHTML = `
+                        <span class="effect-icon">${effect.icon}</span>
+                        <span class="effect-name">${effect.name}</span>
+                    `;
+                    effectsGrid.appendChild(effectEl);
+                 });
+                 effectsContainer.appendChild(effectsGrid);
+            }
         },
 
         renderBottomNav() {

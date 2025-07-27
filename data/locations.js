@@ -1,6 +1,6 @@
 /**
  * @file data/locations.js
- * @description 游戏内容 - 地图与地点 (v52.3.0 - 完成迁移)
+ * @description 游戏内容 - 地图与地点 (v55.2.1 - [修改] 电脑交互升级)
  */
 window.gameData.maps = {
     "hangcheng": {
@@ -56,6 +56,15 @@ window.gameData.locations = {
         hotspots: [
             { label: "返回客厅", icon: "🚪", interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_living_room' } } } ] } },
             { label: "床", icon: "🛏️", interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_BED_OPTIONS" } } },
+            // [修改] 电脑交互改为启动对话
+            { 
+                label: "电脑", 
+                icon: "💻", 
+                interaction: { 
+                    type: 'start_dialogue', 
+                    payload: { dialogueId: 'DIALOGUE_COMPUTER_CHOICE' }
+                } 
+            },
             { label: "沙袋", icon: "🥊", interaction: { type: 'combat', payload: { enemies: [ { id: 'thug', quantity: 2 }, { id: 'thug_leader', quantity: 1 } ], fleeable: false, victoryPrompt: '你干净利落地解决了麻烦！', defeatPrompt: '双拳难敌众手...', victoryActionBlock: [ { action: { type: 'modify_variable', payload: { varId: VARS.DEFEATED_TEST_THUGS, operation: 'set', value: 1 } } }, { action: { type: 'effect', payload: { gold: 150 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.ENERGY_DRINK, quantity: 1 } } } ], defeatActionBlock: [ { action: { type: 'log', payload: { text: '你被狠狠地教训了一顿，混混们搜走了你身上一些财物。', color: 'var(--error-color)' } } }, { action: { type: 'effect', payload: { gold: -100 } } }, { action: { type: 'remove_item', payload: { itemId: ITEMS.ENERGY_DRINK, quantity: 1 } } }, { action: { type: 'modify_variable', payload: { varId: VARS.THUG_DEFEAT_COUNT, operation: 'add', value: 1, log: '（你感觉更了解街头生存的残酷了。）', logColor: 'var(--skill-color)' } } } ] } } }
         ]
     },

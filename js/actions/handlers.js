@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v52.1.1 - [完成] 统一所有日志颜色)
+ * @description 动作模块 - ActionBlock执行器 (v55.2.1 - [修复] 修正效果施加的目标)
  */
 (function() {
     'use strict';
@@ -24,6 +24,14 @@
         show_toast(payload) { game.Events.publish(EVENTS.UI_SHOW_TOAST, payload); },
         
         start_dialogue(payload) { return game.UI.showNarrative(payload.dialogueId); },
+
+        // [修复] add_effect 动作现在会正确地将玩家作为目标单位
+        add_effect(payload) {
+            if (payload && payload.effectId) {
+                // 第一个参数传递 game.State.get()，即当前玩家的状态对象
+                game.Effects.add(game.State.get(), payload.effectId);
+            }
+        },
 
         effect(payload) { game.State.applyEffect(payload); },
         action(payload) {
@@ -82,7 +90,6 @@
                 while(time.phase >= phasesInDay) {
                     time.phase -= phasesInDay;
                     time.day++;
-                    // [修改] 将这里的颜色修正为高亮信息蓝
                     this.log({ text: game.Utils.formatMessage('newDay'), color: "var(--log-color-primary)" });
                     const daysInMonth = new Date(time.year, time.month, 0).getDate();
                     if(time.day > daysInMonth) {
@@ -185,13 +192,17 @@
         }
     };
 
-    async function executeActionBlock(actionBlock) {
+    // [修改] 升级 executeActionBlock 以便在未来可以传递上下文
+    async function executeActionBlock(actionBlock, context = null) {
         if (!actionBlock) return;
+        const targetUnit = context || game.State.get(); // 默认目标是玩家
+
         for (const block of actionBlock) {
             const action = block.action || block;
             const handler = actionHandlers[action.type];
             if (handler) {
-                await handler.call(actionHandlers, action.payload);
+                // 将上下文传递给处理器（虽然目前只有add_effect用到了）
+                await handler.call(actionHandlers, action.payload, targetUnit);
             } else {
                 const message = game.Utils.formatMessage('errorUnknownAction', { type: action.type });
                 console.error(message);

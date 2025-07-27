@@ -105,6 +105,7 @@
             const baseStats = unit.stats || { str: 0, dex: 0, int: 0, con: 0, lck: 0 };
             const effectiveStats = { ...baseStats };
 
+            // 1. 累加装备效果
             if (unit.equipped) {
                 for (const slotId in unit.equipped) {
                     const slot = unit.equipped[slotId];
@@ -121,12 +122,23 @@
                 }
             }
 
+            // 2. 累加被动技能/天赋效果
             game.Perk.applyPassiveEffects(unit, effectiveStats);
+            
+            // [新增] 3. 累加来自新效果系统的修正
+            if (unit.activeEffects) {
+                const allStats = { ...effectiveStats, ...unit };
+                for (const statKey in allStats) {
+                    effectiveStats[statKey] = (effectiveStats[statKey] || 0) + game.Effects.getStatModifier(unit, statKey);
+                }
+            }
 
+            // 4. 计算派生属性
             for (const statKey in gameData.formulas_primary) {
                 effectiveStats[statKey] = this.evaluateFormula(gameData.formulas_primary[statKey], effectiveStats);
             }
 
+            // 5. 再次累加装备对派生属性的直接影响
             if (unit.equipped) {
                 for (const slotId in unit.equipped) {
                     const slot = unit.equipped[slotId];
@@ -142,7 +154,7 @@
                     }
                 }
             }
-
+            
             return effectiveStats;
         },
     };

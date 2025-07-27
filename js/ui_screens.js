@@ -132,7 +132,7 @@
                     return !isDestroyed && game.ConditionChecker.evaluate(spot.conditions);
                 });
 
-            const ITEMS_PER_PAGE = 4;
+            const ITEMS_PER_PAGE = 6;
             const pageIndex = gameState.hotspotPageIndex || 0;
             const startIndex = pageIndex * ITEMS_PER_PAGE;
             const endIndex = startIndex + ITEMS_PER_PAGE;

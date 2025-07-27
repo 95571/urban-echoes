@@ -7,6 +7,7 @@ window.gameData.initialPlayerState = {
     hp: 100, maxHp: 100, mp: 100,  maxMp: 100,
     stats: { str: 5, dex: 5, int: 5, con: 5, lck: 5 },
     derivedStats: {},
+    activeEffects: [], // [新增] 用于存储当前所有生效的状态效果实例
     inventory: [
         { id: "item_phone", quantity: 1 },
         { id: "item_newbie_pack", quantity: 1 }

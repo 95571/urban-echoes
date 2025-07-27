@@ -74,7 +74,8 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
     padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px; /* 调整间距 */
+    overflow-y: auto; /* 允许内容过多时滚动 */
 }
 
 #main-content {
@@ -118,7 +119,7 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
 .nav-button.active:disabled { color: #aaa; background-color: #ddd; }
 
 
-/* --- 左侧面板 --- */
+/* --- 左侧面板 (样式重构) --- */
 .avatar-image { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; position: relative; z-index: 1; }
 
 .player-avatar {
@@ -128,52 +129,134 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
     background-color: var(--bg-color);
     border: 3px solid var(--border-color);
     border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: var(--primary-color);
     overflow: hidden;
     position: relative;
     background-image: url('images/unknown.png');
     background-size: cover;
     background-position: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    flex-shrink: 0;
 }
 
-.player-info-main {
+.panel-info-group {
+    background-color: rgba(0,0,0,0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
     text-align: center;
+    flex-shrink: 0;
+}
+
+.player-name { font-size: 1.4em; font-weight: bold; color: var(--text-color); margin-bottom: 4px; }
+.player-gold { font-size: 1.1em; font-weight: bold; color: #b5651d; }
+
+.game-date { font-size: 0.9em; color: var(--text-muted-color); font-weight: 500; }
+.game-time { font-size: 1.1em; color: var(--text-color); }
+
+.resource-bars-container { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;}
+.resource-bar { 
+    width: 100%; 
+    height: 24px; 
+    background-color: rgba(0,0,0,0.1); 
+    border-radius: 6px; 
+    position: relative; 
+    overflow: hidden; 
+    border: 1px solid rgba(0,0,0,0.1);
+}
+.resource-bar.hp-bar { background-color: rgba(200, 50, 50, 0.2); }
+.resource-bar.mp-bar { background-color: rgba(50, 100, 200, 0.2); }
+
+.resource-bar-fill { height: 100%; transition: width 0.4s ease-in-out; }
+.hp-bar .resource-bar-fill { background-color: var(--success-color); }
+.mp-bar .resource-bar-fill { background-color: var(--primary-color); }
+
+.resource-bar-text { 
+    position: absolute; 
+    left: 0; 
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px; 
+    font-weight: 700; 
+    color: white; 
+    text-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+
+.primary-stats-container {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-.player-name { font-size: 1.4em; font-weight: bold; color: var(--text-color); }
-.player-gold { font-size: 1.1em; font-weight: bold; color: #b5651d; }
-
-.game-time-container {
-    background: rgba(0,0,0,0.05);
-    padding: 4px 8px;
-    border-radius: 6px;
-    text-align: center;
-}
-.game-time { font-size: 1em; color: var(--text-muted-color); }
-.game-date { font-size: 0.8em; color: var(--text-muted-color); }
-
-.resource-bars-container { display: flex; flex-direction: column; gap: 6px; }
-.resource-bar { width: 100%; height: 20px; background-color: rgba(0,0,0,0.1); border-radius: 10px; position: relative; overflow: hidden; border: 1px solid rgba(0,0,0,0.05); }
-.resource-bar-fill { height: 100%; transition: width 0.4s ease-in-out; border-radius: 10px; }
-.resource-bar-text { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 600; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.6); }
-.hp-fill { background-color: var(--success-color); }
-.mp-fill { background-color: var(--primary-color); }
-
-.primary-stats-bar {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
     background-color: rgba(0,0,0,0.05);
-    border-radius: 6px;
-    padding: 8px;
+    border-radius: 8px;
+    padding: 10px;
     border: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
-.primary-stat { font-size: 1.0em; color: var(--text-muted-color); display: flex; align-items: center; gap: 8px; }
+.primary-stat { 
+    display: grid;
+    grid-template-columns: 24px auto 1fr;
+    gap: 10px;
+    align-items: center;
+    font-size: 1.0em; 
+    color: var(--text-muted-color); 
+}
+.primary-stat .stat-icon { font-size: 1.2em; text-align: center; }
+.primary-stat .stat-name { font-weight: 500; color: var(--text-color); }
+.primary-stat .stat-value { font-weight: 700; text-align: right; color: var(--primary-color); font-size: 1.1em; }
+
+/* [新增] 状态效果区域样式 */
+.effects-container {
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.panel-section-title {
+    font-size: 0.9em;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--border-color);
+}
+.effects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+}
+.effect-entry {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: help;
+}
+.effect-entry.debuff {
+    border-left: 3px solid var(--error-color);
+}
+.effect-entry.buff {
+    border-left: 3px solid var(--success-color);
+}
+.effect-icon {
+    font-size: 1.2em;
+}
+.effect-name {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 
 /* --- 滚动日志 --- */
 #scrolling-log-container {

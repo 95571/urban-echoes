@@ -16,6 +16,7 @@
         // 初始化空的命名空间，等待模块填充
         Actions: {}, 
         Events: {}, // [新增] 事件总线命名空间
+        Effects: {}, // [新增] 效果系统命名空间
 
         SAVE_KEY_PREFIX: "UrbanEchoes_Slot_",
         SAVE_META_KEY: "UrbanEchoes_Meta",
@@ -31,6 +32,7 @@
         }
 
         game.State.init();
+        game.Effects.init(); // [新增] 初始化效果系统
 
         window.onerror = (message, source, lineno, colno, error) => {
             console.error("全局错误:", { message, source, error });

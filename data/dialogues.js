@@ -1,8 +1,24 @@
 /**
  * @file data/dialogues.js
- * @description 游戏内容 - 扁平化对话节点 (v52.3.1 - [优化] 调整日志颜色)
+ * @description 游戏内容 - 扁平化对话节点 (v55.2.1 - [新增] 电脑对话)
  */
 window.gameData.dialogues = {
+    // --- [新增] 电脑交互 ---
+    "DIALOGUE_COMPUTER_CHOICE": {
+        dialogueText: [{ avatar: 'images/player_dialogue.png', text: '电脑屏幕上显示着一个“公司福利”活动页面。' }],
+        options: [
+            { 
+                text: '领取“功能饮料”赞助 (x10)', 
+                actionBlock: [{ action: { type: 'add_item', payload: { itemId: ITEMS.ENERGY_DRINK, quantity: 10 } } }] 
+            },
+            { 
+                text: '领取“长效治疗剂”样品 (x5)', 
+                actionBlock: [{ action: { type: 'add_item', payload: { itemId: 'item_healing_agent_long', quantity: 5 } } }] 
+            },
+            { text: '关闭页面' }
+        ]
+    },
+
     // --- 妈妈的对话 ---
     "DIALOGUE_MOM_GREETING": {
         dialogueText: [ { avatar: 'images/mother_normal.png', name: '妈妈', text: '回来了啊，孩子。今天过得怎么样？' }, { avatar: 'images/mother_normal.png', name: '妈妈', text: '工作不着急找，先玩一段时间。' } ],

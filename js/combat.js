@@ -2,7 +2,7 @@
  * @file js/combat.js
  * @description 战斗系统模块 (v52.2.1 - [优化] 调整日志颜色)
  * @author Gemini (CTO)
- * @version 52.2.1
+ * @version 55.2.0
  */
 (function() {
     'use strict';
@@ -28,10 +28,12 @@
                 combatant.hp = combatant.maxHp;
                 combatant.mp = combatant.maxMp;
                 combatant.hasTakenExtraTurnThisRound = false;
+                combatant.activeEffects = combatant.activeEffects || []; // 确保有效果数组
 
                 if (type === 'player') {
                     combatant.hp = gameState.hp;
                     combatant.mp = gameState.mp;
+                    combatant.activeEffects = gameState.activeEffects; // 玩家状态同步
                 }
 
                 return { ...combatant, type, combatId, isDefending: false };
@@ -75,7 +77,15 @@
         startRound() {
             const cs = game.State.get().combatState;
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('newRound'), color: 'var(--secondary-color)' });
-            [...cs.playerParty, ...cs.enemies].forEach(u => u.hasTakenExtraTurnThisRound = false);
+            
+            // [修改] 在回合开始时，为所有单位处理效果Tick
+            [...cs.playerParty, ...cs.enemies].forEach(u => {
+                u.hasTakenExtraTurnThisRound = false;
+                if (u.hp > 0) {
+                    game.Effects.tick(u);
+                }
+            });
+            
             cs.turnOrder = [...cs.playerParty, ...cs.enemies]
                 .filter(u => u.hp > 0)
                 .sort((a, b) => (b.effectiveStats.spd || 0) - (a.effectiveStats.spd || 0));
@@ -123,7 +133,6 @@
             const cs = game.State.get().combatState;
             if (!cs) return;
             cs.isWaitingForPlayerInput = true;
-            // [修改] 使用新的高亮日志颜色
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('playerTurn'), color: "var(--log-color-primary)" });
             game.Events.publish(EVENTS.UI_RENDER);
         },
@@ -207,7 +216,6 @@
             }
             const baseFleeChance = 0.5 + ((gameState.effectiveStats.lck - 5) * 0.05);
             if (Math.random() < baseFleeChance) {
-                // [修改] 使用新的高亮日志颜色
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeSuccess'), color: 'var(--log-color-success)' });
                 this.end('fled');
             } else {
@@ -275,14 +283,9 @@
                 if (defender.type === 'player') {
                     const mainPlayerState = game.State.get();
                     mainPlayerState.hp = defender.hp;
-                    mainPlayerState.mp = defender.mp;
-                }
-
-                if (defender.type === 'player') {
                     game.Events.publish(EVENTS.STATE_CHANGED);
                 }
                 
-                // [修改] 玩家攻击成功时，使用新的高亮日志颜色
                 const messageColor = attacker.type === 'enemy' ? 'var(--error-color)' : 'var(--log-color-success)';
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('attackDamage', { attackerName: attacker.name, defenderName: defender.name, damage: damage }), color: messageColor });
 
@@ -310,7 +313,6 @@
                 message = '';
             }
             
-            // [修改] 战斗胜利时，使用新的高亮日志颜色
             const logMessage = outcome === 'win' ? game.Utils.formatMessage('combatWin') :
                                outcome === 'loss' ? game.Utils.formatMessage('combatLoss') :
                                '';
@@ -324,10 +326,15 @@
             gameState.isCombat = false;
             const victoryActionBlock = combatState.victoryActionBlock;
             const defeatActionBlock = combatState.defeatActionBlock;
+
+            // [修改] 战斗结束后，将战斗中的临时状态同步回主玩家状态
+            const playerCombatant = combatState.playerParty[0];
+            gameState.hp = playerCombatant.hp;
+            gameState.mp = playerCombatant.mp;
+            gameState.activeEffects = playerCombatant.activeEffects;
+
             delete gameState.combatState;
-
             game.UI.isCombatScreenInitialized = false;
-
             game.State.setUIMode('EXPLORE');
 
             if (outcome === 'win' && victoryActionBlock) {
@@ -335,6 +342,7 @@
             } else if (outcome === 'loss' && defeatActionBlock) {
                 await game.Actions.executeActionBlock(defeatActionBlock);
             }
+             game.Events.publish(EVENTS.STATE_CHANGED); // 确保战斗结束后UI刷新
         },
 
         getCombatActionAvailability() {
