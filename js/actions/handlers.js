@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v55.2.2 - [修复] 修正多阶段时间推进的Buff Tick)
+ * @description 动作模块 - ActionBlock执行器 (v56.0.0 - [新增] remove_effect动作)
  */
 (function() {
     'use strict';
@@ -28,6 +28,13 @@
         add_effect(payload) {
             if (payload && payload.effectId) {
                 game.Effects.add(game.State.get(), payload.effectId);
+            }
+        },
+        // [新增] 移除效果的动作
+        remove_effect(payload, targetUnit) {
+            const unit = targetUnit || game.State.get();
+            if (payload && payload.effectId) {
+                game.Effects.removeById(unit, payload.effectId);
             }
         },
 
@@ -76,7 +83,6 @@
             game.State.setUIMode('MAP');
         },
         
-        // [修复] 重写时间推进逻辑，确保每个阶段都发布一次事件
         async advanceTime(payload) {
             const state = game.State.get();
             const time = state.time;
@@ -91,10 +97,7 @@
             }
 
             for (let i = 0; i < phasesToAdvance; i++) {
-                // 推进1个时间段
                 time.phase++;
-
-                // 处理日期翻页
                 if (time.phase >= phasesInDay) {
                     time.phase = 0;
                     time.day++;
@@ -109,8 +112,6 @@
                         }
                     }
                 }
-                
-                // 为每个推进的阶段发布一次事件，让效果系统等模块进行响应
                 game.Events.publish(EVENTS.TIME_ADVANCED);
             }
         },

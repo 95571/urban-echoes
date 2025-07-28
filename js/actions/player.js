@@ -1,6 +1,6 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v52.1.0 - [优化] 调整日志颜色)
+ * @description 动作模块 - 玩家动作 (v56.0.0 - [重构] 装备效果由ActionBlock驱动)
  */
 (function() {
     'use strict';
@@ -32,7 +32,7 @@
             game.Events.publish(EVENTS.UI_RENDER);
         },
 
-        equipItem(index) {
+        async equipItem(index) {
             const gameState = game.State.get();
             const itemStack = gameState.inventory[index];
             if (!itemStack) return;
@@ -45,9 +45,15 @@
                 return;
             }
             if (targetSlot.itemId) {
-                this.unequipItem(slotId, true);
+                await this.unequipItem(slotId, true);
             }
             targetSlot.itemId = itemStack.id;
+
+            // [新增] 执行装备时的ActionBlock
+            if (itemData.onEquipActionBlock) {
+                await this.executeActionBlock(itemData.onEquipActionBlock);
+            }
+
             itemStack.quantity--;
             if (itemStack.quantity <= 0) {
                 gameState.inventory.splice(index, 1);
@@ -58,11 +64,18 @@
             game.Events.publish(EVENTS.UI_RENDER);
         },
 
-        unequipItem(slotId, internal = false) {
+        async unequipItem(slotId, internal = false) {
             const gameState = game.State.get();
             const targetSlot = gameState.equipped[slotId];
             if (!targetSlot || !targetSlot.itemId) return;
             const itemToUnequipId = targetSlot.itemId;
+            const itemData = gameData.items[itemToUnequipId];
+
+            // [新增] 执行卸下装备时的ActionBlock
+            if (itemData && itemData.onUnequipActionBlock) {
+                await this.executeActionBlock(itemData.onUnequipActionBlock);
+            }
+
             this.addItemToInventory(itemToUnequipId, 1, true);
             targetSlot.itemId = null;
             if (!internal) {
@@ -128,7 +141,6 @@
             if (!itemData) return;
             
             if (!internal) {
-                // [修改] 使用新的高亮日志颜色
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('getItemLoot', { itemName: itemData.name, quantity: q}), color: 'var(--log-color-success)' });
             }
 
@@ -182,7 +194,6 @@
                 sourceJobId: jobId,
                 objectives: JSON.parse(JSON.stringify(jobData.objectives || []))
             };
-            // [修改] 使用新的高亮日志颜色
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), color: 'var(--log-color-primary)' });
         },
         playerCombatAttack() { game.Combat.playerAttack(); },

@@ -1,6 +1,6 @@
 /**
  * @file data/items.js
- * @description 游戏内容 - 物品与装备 (v55.3.0 - [测试] 增强治疗剂效果)
+ * @description 游戏内容 - 物品与装备 (v57.0.0 - [优化] 区分装备基础属性与Buff)
  */
 window.gameData.items = {
     "item_phone": { 
@@ -30,7 +30,6 @@ window.gameData.items = {
             { action: { type: 'add_effect', payload: { effectId: 'eff_energy_boost' } } }
         ]
     },
-    // [修改] 增强长效治疗剂，一次性附加6个buff用于测试
     "item_healing_agent_long": {
         name: "长效治疗剂", type: "consumable",
         description: "一支缓释型治疗针剂，能在一段时间内持续促进身体恢复，并激发潜能。",
@@ -65,8 +64,18 @@ window.gameData.items = {
         description: "少年，来挥洒青春的汗水吧！",
         droppable: true,
         imageUrl: 'images/equip_wood_sword.png',
-        useDescription: "装备后能提升你的攻击能力。",
-        effect: { attack: 2 }
+        useDescription: "装备后能提升你的攻击能力和行动力。",
+        // [新增] effect 属性代表装备的【基础属性】，不可移除
+        effect: { attack: 2 }, 
+        // onEquipActionBlock 代表装备的【附加/附魔属性】，可通过移除Buff来改变
+        onEquipActionBlock: [
+            { action: { type: 'add_effect', payload: { effectId: 'eff_sharpness' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_swiftness' } } }
+        ],
+        onUnequipActionBlock: [
+            { action: { type: 'remove_effect', payload: { effectId: 'eff_sharpness' } } },
+            { action: { type: 'remove_effect', payload: { effectId: 'eff_swiftness' } } }
+        ]
     },
     "equip_baseball_cap": {
         name: "棒球帽", type: "equipment", slot: "head",
@@ -82,7 +91,13 @@ window.gameData.items = {
         droppable: true,
         imageUrl: 'images/equip_tshirt.png',
         useDescription: "装备后能提升你的体质，增加健康上限。",
-        effect: { con: 1 }
+        effect: { con: 1 },
+		onEquipActionBlock: [
+            { action: { type: 'add_effect', payload: { effectId: 'eff_scholars_blessing' } } },
+        ],
+        onUnequipActionBlock: [
+            { action: { type: 'remove_effect', payload: { effectId: 'eff_scholars_blessing' } } },
+        ]
     },
     "equip_jeans": {
         name: "牛仔裤", type: "equipment", slot: "legs",

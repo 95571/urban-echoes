@@ -14,14 +14,12 @@
 <body>
     <div id="game-container">
         <aside id="left-panel"></aside>
-
         <main id="main-content">
             <div id="screen"></div>
             <div id="scrolling-log-container"></div>
             <nav id="bottom-nav"></nav>
             <div id="toast-container"></div>
         </main>
-
         <div id="narrative-ui" class="hidden">
             <div id="narrative-options"></div>
             <div class="narrative-wrapper">
@@ -34,74 +32,18 @@
             </div>
         </div>
     </div>
-
-    <template id="template-core-stat-item">
-        <li>
-            <span class="stat-name"></span>
-            <span class="stat-value"></span>
-        </li>
-    </template>
-
-    <template id="template-derived-stat-item">
-        <li>
-            <span class="stat-name"></span>
-            <span class="stat-value"></span>
-        </li>
-    </template>
-
-    <template id="template-perk-item">
-         <li title="">
-            <span class="perk-icon">✨</span>
-            <span class="perk-name"></span>
-        </li>
-    </template>
-
-    <template id="template-skill-proficiency-item">
-        <div class="skill-list-entry" data-id="">
-            <div class="skill-list-header">
-                <strong class="skill-name"></strong>
-                <span class="skill-level"></span>
-            </div>
-            <div class="proficiency-bar" title="">
-                <div class="proficiency-bar-fill" style="width: 0%"></div>
-            </div>
-        </div>
-    </template>
-
-    <template id="template-inventory-item">
-         <li>
-            <div class="inventory-item-entry">
-                <div class="item-icon"></div>
-                <span class="item-name-quantity"></span>
-            </div>
-            <div class="item-actions"></div>
-        </li>
-    </template>
-
-    <template id="template-party-member-item">
-        <li class="relationship-entry" data-id="">
-            <div class="party-member-avatar"></div>
-            <div class="party-member-info">
-                <strong class="member-name"></strong>
-                <small class="member-desc"></small>
-            </div>
-        </li>
-    </template>
-
-    <template id="template-system-save-slot">
-        <li>
-            <div>
-                <strong class="save-slot-name"></strong>
-                <small class="save-slot-info" style="display:block; color:var(--text-muted-color);"></small>
-            </div>
-            <div class="item-actions">
-                </div>
-        </li>
-    </template>
+    <template id="template-core-stat-item"><li><span class="stat-name"></span><span class="stat-value"></span></li></template>
+    <template id="template-derived-stat-item"><li><span class="stat-name"></span><span class="stat-value"></span></li></template>
+    <template id="template-perk-item"><li title=""><span class="perk-icon">✨</span><span class="perk-name"></span></li></template>
+    <template id="template-skill-proficiency-item"><div class="skill-list-entry" data-id=""><div class="skill-list-header"><strong class="skill-name"></strong><span class="skill-level"></span></div><div class="proficiency-bar" title=""><div class="proficiency-bar-fill" style="width: 0%"></div></div></div></template>
+    <template id="template-inventory-item"><li><div class="inventory-item-entry"><div class="item-icon"></div><span class="item-name-quantity"></span></div><div class="item-actions"></div></li></template>
+    <template id="template-party-member-item"><li class="relationship-entry" data-id=""><div class="party-member-avatar"></div><div class="party-member-info"><strong class="member-name"></strong><small class="member-desc"></small></div></li></template>
+    <template id="template-system-save-slot"><li><div><strong class="save-slot-name"></strong><small class="save-slot-info" style="display:block; color:var(--text-muted-color);"></small></div><div class="item-actions"></div></li></template>
 
     <script src="data.js"></script>
     <script src="data/constants.js"></script>
     <script src="data/core.js"></script>
+    <script src="data/formulas.js"></script>
     <script src="data/items.js"></script>
     <script src="data/quests.js"></script>
     <script src="data/skills.js"></script>
@@ -110,11 +52,14 @@
     <script src="data/sequences.js"></script>
     <script src="data/player.js"></script>
     <script src="data/locations.js"></script>
-    <script src="data/effects.js"></script> <script src="game.js"></script>
+    <script src="data/effects.js"></script> 
+    
+    <script src="game.js"></script>
     <script src="js/dom_utils.js"></script>
     <script src="js/events.js"></script>
     <script src="js/utils.js"></script>
-    <script src="js/effects.js"></script> <script src="js/skills.js"></script>
+    <script src="js/effects.js"></script> 
+    <script src="js/skills.js"></script>
     <script src="js/state.js"></script>
     <script src="js/save_load.js"></script>
 

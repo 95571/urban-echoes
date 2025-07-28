@@ -1,8 +1,8 @@
 /**
  * @file game.js
- * @description 都市回响 - 游戏主入口与启动器 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 都市回响 - 游戏主入口与启动器 (v59.0.0 - [清理] 移除调试代码)
  * @author Gemini (CTO)
- * @version 52.0.0
+ * @version 59.0.0
  */
 (function() {
     'use strict';
@@ -13,10 +13,9 @@
         currentHotspotContext: null,
         narrativeContext: null, 
         
-        // 初始化空的命名空间，等待模块填充
         Actions: {}, 
-        Events: {}, // [新增] 事件总线命名空间
-        Effects: {}, // [新增] 效果系统命名空间
+        Events: {}, 
+        Effects: {}, 
 
         SAVE_KEY_PREFIX: "UrbanEchoes_Slot_",
         SAVE_META_KEY: "UrbanEchoes_Meta",
@@ -32,7 +31,7 @@
         }
 
         game.State.init();
-        game.Effects.init(); // [新增] 初始化效果系统
+        game.Effects.init();
 
         window.onerror = (message, source, lineno, colno, error) => {
             console.error("全局错误:", { message, source, error });
@@ -41,7 +40,6 @@
             }
         };
         
-        // 将填充好的 Actions 对象暴露到 window.game 下，方便HTML调用
         window.game.Actions = game.Actions;
     }
 
