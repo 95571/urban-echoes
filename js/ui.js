@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v53.0.0 - [重构] 移除右侧日志，改为滚动信息系统)
+ * @description UI核心模块 (v53.3.0 - [新增] Buff剩余时间显示)
  * @author Gemini (CTO)
- * @version 53.0.0
+ * @version 53.3.0
  */
 (function() {
     'use strict';
@@ -12,7 +12,6 @@
     const UI = {
         init() {
             const dom = game.dom;
-            // [修改] 更新需要缓存的DOM元素ID列表
             const ids = [
                 "left-panel", "main-content", "screen", "bottom-nav",
                 "toast-container", "narrative-ui", "scrolling-log-container"
@@ -103,29 +102,12 @@
             });
         },
 
-        createFromTemplate(templateId, data) {
-            const template = document.getElementById(templateId);
-            if (!template) {
-                console.error(`Template with id ${templateId} not found.`);
-                return null;
-            }
-            const clone = template.content.cloneNode(true);
-            for (const key in data) {
-                const el = clone.querySelector(`.${key}`);
-                if (el) {
-                    el.innerHTML = data[key];
-                }
-            }
-            return clone;
-        },
-
         render() {
             const dom = game.dom;
             const gameState = game.State.get();
             try {
                 const isTitle = gameState.gameState === 'TITLE';
                 dom['left-panel'].classList.toggle('hidden', isTitle);
-                // [修改] 不再需要控制 right-panel
                 dom['bottom-nav'].classList.toggle('hidden', isTitle);
 
                 if (!isTitle) {
@@ -142,16 +124,10 @@
             }
         },
 
-        /**
-         * [重构] 将日志信息显示为屏幕上的滚动消息。
-         * @param {string} message - 要显示的消息文本 (支持HTML)。
-         * @param {string} [color="var(--text-on-primary-color)"] - 文本颜色。
-         */
         log(message, color = "var(--text-on-primary-color)") {
             const container = game.dom['scrolling-log-container'];
             if (!container) return;
 
-            // 限制最大消息数量，防止刷屏
             const MAX_LOGS = 10;
             if (container.children.length >= MAX_LOGS) {
                 container.removeChild(container.firstChild);
@@ -164,10 +140,8 @@
 
             container.appendChild(p);
 
-            // 4秒后开始淡出
             setTimeout(() => {
                 p.classList.add('fade-out');
-                // 动画结束后移除元素
                 p.addEventListener('animationend', () => p.remove());
             }, 4000);
         },
@@ -219,7 +193,7 @@
                     'left-panel-date', 'left-panel-time', 
                     'left-panel-hp-bar', 'left-panel-hp-fill', 'left-panel-hp-text',
                     'left-panel-mp-bar', 'left-panel-mp-fill', 'left-panel-mp-text',
-                    'left-panel-stats', 'left-panel-effects' // [新增] 缓存效果容器
+                    'left-panel-stats', 'left-panel-effects'
                 ];
                 idsToCache.forEach(id => dom[id] = document.getElementById(id));
                 this.isLeftPanelInitialized = true;
@@ -243,7 +217,7 @@
             dom['left-panel-mp-text'].innerHTML = `<span>${gameData.icons.energy}</span> ${Math.ceil(mp)} / ${maxMp}`;
 
             const statsContainer = dom['left-panel-stats'];
-            statsContainer.innerHTML = ''; // Clear old stats
+            statsContainer.innerHTML = ''; 
             for (const key in gameData.statNames) {
                 const statName = gameData.statNames[key];
                 const statEl = document.createElement('div');
@@ -255,26 +229,35 @@
                 statsContainer.appendChild(statEl);
             }
 
-            // [新增] 渲染当前状态效果
             const effectsContainer = dom['left-panel-effects'];
             effectsContainer.innerHTML = '';
             const visibleEffects = activeEffects.filter(effect => !effect.isHidden);
             if (visibleEffects.length > 0) {
-                 effectsContainer.innerHTML = '<h4 class="panel-section-title">当前状态</h4>';
                  const effectsGrid = document.createElement('div');
                  effectsGrid.className = 'effects-grid';
                  visibleEffects.forEach(effect => {
-                    const durationText = effect.duration === -1 ? '永久' : `剩余${effect.duration}时段`;
+                    // [修改] 使用∞符号代表永久效果
+                    const durationText = effect.duration === -1 ? '∞' : effect.duration;
                     const effectEl = document.createElement('div');
                     effectEl.className = `effect-entry ${effect.type || 'buff'}`;
-                    effectEl.title = `${effect.name}\n${effect.description}\n(${durationText})`;
+                    const tooltip = `${effect.name}\n${effect.description}\n(${effect.duration === -1 ? '永久' : `剩余 ${effect.duration} 时段`})`;
+                    effectEl.title = tooltip;
+                    
+                    // [修改] 如果效果有持续时间（大于0或永久），则显示角标
+                    const showDuration = effect.duration > 0 || effect.duration === -1;
+                    const durationDisplay = showDuration ? `<span class="effect-duration">${durationText}</span>` : '';
+
                     effectEl.innerHTML = `
-                        <span class="effect-icon">${effect.icon}</span>
+                        <div class="effect-icon-container">
+                            <span class="effect-icon">${effect.icon}</span>
+                            ${durationDisplay}
+                        </div>
                         <span class="effect-name">${effect.name}</span>
                     `;
                     effectsGrid.appendChild(effectEl);
                  });
                  effectsContainer.appendChild(effectsGrid);
+                 game.UI.makeListDraggable(effectsGrid);
             }
         },
 

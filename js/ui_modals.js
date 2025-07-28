@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 叙事UI与自定义弹窗管理器 (v54.3.1 - [重构] 调整弹窗挂载点)
+ * @description UI模块 - 叙事UI与自定义弹窗管理器 (v54.3.2 - [重构] 拖拽滚动功能全局化)
  * @author Gemini (CTO)
- * @version 54.3.1
+ * @version 54.3.2
  */
 (function() {
     'use strict';
@@ -283,8 +283,9 @@
                     ])
                 ])
             ]);
-
-            this.makeListDraggable(content.querySelector('.item-details-effects-list'));
+            
+            // [修改] 调用全局的 makeListDraggable
+            game.UI.makeListDraggable(content.querySelector('.item-details-effects-list'));
 
             let actionButtons = [];
             if (isEquipped) {
@@ -333,7 +334,9 @@
             } else {
                  jobList.appendChild(createElement('li', {}, [createElement('p', { textContent: '目前没有新的兼职信息。' })]));
             }
-            this.makeListDraggable(jobList);
+            
+            // [修改] 调用全局的 makeListDraggable
+            game.UI.makeListDraggable(jobList);
             
             const content = createElement('div', { className: 'job-board-content' }, [jobList]);
             const closeButton = createElement('button', { textContent: '关闭', className: 'secondary-action', eventListeners: { click: () => this.resolveCurrent(null) } });
@@ -429,22 +432,6 @@
             ];
 
             return this.createModalFrame('选择数量', content, actions);
-        },
-
-        makeListDraggable(element) {
-            if (!element || element.scrollHeight <= element.clientHeight) { element.classList.remove('is-scrollable'); return; }
-            element.classList.add('is-scrollable');
-            let isDown = false, startY, scrollTop;
-            const start = e => { isDown = true; element.style.cursor = 'grabbing'; startY = (e.pageY || e.touches[0].pageY) - element.offsetTop; scrollTop = element.scrollTop; e.preventDefault(); };
-            const end = () => { isDown = false; element.style.cursor = 'grab'; };
-            const move = e => { if (!isDown) return; e.preventDefault(); const y = (e.pageY || e.touches[0].pageY) - element.offsetTop; element.scrollTop = scrollTop - (y - startY); };
-            element.addEventListener('mousedown', start);
-            element.addEventListener('mouseleave', end);
-            element.addEventListener('mouseup', end);
-            element.addEventListener('mousemove', move);
-            element.addEventListener('touchstart', start, { passive: false });
-            element.addEventListener('touchend', end);
-            element.addEventListener('touchmove', move, { passive: false });
         }
     };
 

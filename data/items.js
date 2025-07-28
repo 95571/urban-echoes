@@ -1,6 +1,6 @@
 /**
  * @file data/items.js
- * @description 游戏内容 - 物品与装备 (v55.2.1 - [新增] 治疗剂)
+ * @description 游戏内容 - 物品与装备 (v55.3.0 - [测试] 增强治疗剂效果)
  */
 window.gameData.items = {
     "item_phone": { 
@@ -30,15 +30,20 @@ window.gameData.items = {
             { action: { type: 'add_effect', payload: { effectId: 'eff_energy_boost' } } }
         ]
     },
-    // [新增] 长效治疗剂
+    // [修改] 增强长效治疗剂，一次性附加6个buff用于测试
     "item_healing_agent_long": {
         name: "长效治疗剂", type: "consumable",
-        description: "一支缓释型治疗针剂，能在一段时间内持续促进身体恢复。",
+        description: "一支缓释型治疗针剂，能在一段时间内持续促进身体恢复，并激发潜能。",
         droppable: true,
-        imageUrl: 'images/item_healing_agent.png', // 假设我们有这张图
-        useDescription: "使用后，在接下来的一段时间里持续恢复你的健康。",
+        imageUrl: 'images/item_healing_agent.png',
+        useDescription: "使用后，在接下来的一段时间里持续恢复你的健康，并获得多种增益效果。",
         onUseActionBlock: [
-            { action: { type: 'add_effect', payload: { effectId: 'eff_regeneration' } } }
+            { action: { type: 'add_effect', payload: { effectId: 'eff_regeneration' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_courage' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_focus' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_fortitude' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_agility' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_insight' } } }
         ]
     },
     "item_salted_fish": {

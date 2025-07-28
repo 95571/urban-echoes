@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v55.2.1 - [修复] 修正效果施加的目标)
+ * @description 动作模块 - ActionBlock执行器 (v55.2.2 - [修复] 修正多阶段时间推进的Buff Tick)
  */
 (function() {
     'use strict';
@@ -25,10 +25,8 @@
         
         start_dialogue(payload) { return game.UI.showNarrative(payload.dialogueId); },
 
-        // [修复] add_effect 动作现在会正确地将玩家作为目标单位
         add_effect(payload) {
             if (payload && payload.effectId) {
-                // 第一个参数传递 game.State.get()，即当前玩家的状态对象
                 game.Effects.add(game.State.get(), payload.effectId);
             }
         },
@@ -77,30 +75,46 @@
             gameState.currentMapNodeId = payload.targetStartNode;
             game.State.setUIMode('MAP');
         },
-        advanceTime(payload) {
-            return new Promise(resolve => {
-                const time = game.State.get().time;
-                const phasesInDay = gameData.settings.timePhases.length;
-                let phasesToAdvance = 0;
-                if (payload.until === 'next_morning') {
-                    phasesToAdvance = (phasesInDay - time.phase);
-                    if (phasesToAdvance <= 0) phasesToAdvance += phasesInDay;
-                } else { phasesToAdvance = payload.phases || 1; }
-                time.phase += phasesToAdvance;
-                while(time.phase >= phasesInDay) {
-                    time.phase -= phasesInDay;
+        
+        // [修复] 重写时间推进逻辑，确保每个阶段都发布一次事件
+        async advanceTime(payload) {
+            const state = game.State.get();
+            const time = state.time;
+            const phasesInDay = gameData.settings.timePhases.length;
+            let phasesToAdvance = 0;
+
+            if (payload.until === 'next_morning') {
+                phasesToAdvance = (phasesInDay - time.phase);
+                if (phasesToAdvance <= 0) phasesToAdvance += phasesInDay;
+            } else {
+                phasesToAdvance = payload.phases || 1;
+            }
+
+            for (let i = 0; i < phasesToAdvance; i++) {
+                // 推进1个时间段
+                time.phase++;
+
+                // 处理日期翻页
+                if (time.phase >= phasesInDay) {
+                    time.phase = 0;
                     time.day++;
                     this.log({ text: game.Utils.formatMessage('newDay'), color: "var(--log-color-primary)" });
                     const daysInMonth = new Date(time.year, time.month, 0).getDate();
-                    if(time.day > daysInMonth) {
-                        time.day = 1; time.month++;
-                        if(time.month > 12) { time.month = 1; time.year++; }
+                    if (time.day > daysInMonth) {
+                        time.day = 1;
+                        time.month++;
+                        if (time.month > 12) {
+                            time.month = 1;
+                            time.year++;
+                        }
                     }
                 }
+                
+                // 为每个推进的阶段发布一次事件，让效果系统等模块进行响应
                 game.Events.publish(EVENTS.TIME_ADVANCED);
-                resolve();
-            });
+            }
         },
+        
         remove_item({ itemId, quantity = 1, log, logColor }) {
             const state = game.State.get();
             const itemData = gameData.items[itemId];
@@ -192,16 +206,14 @@
         }
     };
 
-    // [修改] 升级 executeActionBlock 以便在未来可以传递上下文
     async function executeActionBlock(actionBlock, context = null) {
         if (!actionBlock) return;
-        const targetUnit = context || game.State.get(); // 默认目标是玩家
+        const targetUnit = context || game.State.get();
 
         for (const block of actionBlock) {
             const action = block.action || block;
             const handler = actionHandlers[action.type];
             if (handler) {
-                // 将上下文传递给处理器（虽然目前只有add_effect用到了）
                 await handler.call(actionHandlers, action.payload, targetUnit);
             } else {
                 const message = game.Utils.formatMessage('errorUnknownAction', { type: action.type });

@@ -1,8 +1,8 @@
 /**
  * @file js/ui_menus.js
- * @description UI模块 - 菜单渲染器 (v54.4.0 - [修复] 恢复被误删的任务日志(QUESTS)渲染器)
+ * @description UI模块 - 菜单渲染器 (v54.4.1 - [重构] 拖拽滚动功能全局化)
  * @author Gemini (CTO)
- * @version 54.4.0
+ * @version 54.4.1
  */
 (function() {
     'use strict';
@@ -310,7 +310,10 @@
                         listEl.appendChild(questEntry);
                     });
                 }
-                game.UI.ModalManager.makeListDraggable(listEl);
+                
+                // [修改] 调用全局的 makeListDraggable
+                game.UI.makeListDraggable(listEl);
+
                 return createElement('div', { className: 'quest-section' }, [
                     createElement('h4', { className: 'quest-section-header', textContent: title }),
                     listEl

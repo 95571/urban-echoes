@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 - 核心与布局 (v54.1.3 - [新增] 日志专用高亮颜色)
+ * @description 游戏样式表 - 核心与布局 (v54.3.0 - [新增] Buff时长角标样式)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -74,8 +74,8 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
     padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 12px; /* 调整间距 */
-    overflow-y: auto; /* 允许内容过多时滚动 */
+    gap: 12px;
+    overflow: hidden;
 }
 
 #main-content {
@@ -208,45 +208,58 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
 .primary-stat .stat-name { font-weight: 500; color: var(--text-color); }
 .primary-stat .stat-value { font-weight: 700; text-align: right; color: var(--primary-color); font-size: 1.1em; }
 
-/* [新增] 状态效果区域样式 */
+/* 状态效果区域样式 */
 .effects-container {
     background-color: rgba(0,0,0,0.05);
     border-radius: 8px;
     padding: 10px;
     border: 1px solid var(--border-color);
-    flex-shrink: 0;
+    flex-grow: 1; 
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
-.panel-section-title {
-    font-size: 0.9em;
-    font-weight: 700;
-    color: var(--secondary-color);
-    margin-bottom: 8px;
-    padding-bottom: 4px;
-    border-bottom: 1px dashed var(--border-color);
-}
+
 .effects-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 8px;
+    overflow-y: auto; 
+    flex-grow: 1;
+    padding-right: 5px; 
 }
+.effects-grid.is-scrollable { cursor: grab; }
+.effects-grid.is-scrollable:active { cursor: grabbing; }
+
 .effect-entry {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 6px;
+    padding: 5px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     cursor: help;
+    height: fit-content; 
 }
-.effect-entry.debuff {
-    border-left: 3px solid var(--error-color);
-}
-.effect-entry.buff {
-    border-left: 3px solid var(--success-color);
+.effect-entry.debuff { border-left: 3px solid var(--error-color); }
+.effect-entry.buff { border-left: 3px solid var(--success-color); }
+
+.effect-icon-container {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-color);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
 }
 .effect-icon {
-    font-size: 1.2em;
+    font-size: 1.5em;
+    line-height: 1;
 }
 .effect-name {
     font-size: 0.9em;
@@ -255,6 +268,23 @@ button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-e
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+.effect-duration {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    min-width: 16px;
+    padding: 1px 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.75);
+    border-radius: 3px;
+    border-top-left-radius: 6px;
+    line-height: 1.2;
+    text-align: center;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.8);
+    box-shadow: 0 0 2px rgba(0,0,0,0.5);
 }
 
 

@@ -1,9 +1,9 @@
 /**
  * @file js/dom_utils.js
- * @description UI模块 - DOM元素创建工具 (v54.1.0 - [修复] 修正自定义CSS属性设置)
+ * @description UI模块 - DOM元素创建与操作工具 (v54.2.0 - [重构] 新增 makeListDraggable)
  * @description [新增] 为解决HTML字符串拼接问题，引入组件化思想的基石。
  * @author Gemini (CTO)
- * @version 54.1.0
+ * @version 54.2.0
  */
 (function() {
     'use strict';
@@ -70,11 +70,36 @@
 
         return el;
     }
+    
+    /**
+     * [新增] 使一个元素支持点击/触摸拖拽滚动。
+     * @param {HTMLElement} element - 目标元素。
+     */
+    function makeListDraggable(element) {
+        if (!element || element.scrollHeight <= element.clientHeight) { 
+            element.classList.remove('is-scrollable'); 
+            return; 
+        }
+        element.classList.add('is-scrollable');
+        let isDown = false, startY, scrollTop;
+        const start = e => { isDown = true; element.style.cursor = 'grabbing'; startY = (e.pageY || e.touches[0].pageY) - element.offsetTop; scrollTop = element.scrollTop; e.preventDefault(); };
+        const end = () => { isDown = false; element.style.cursor = 'grab'; };
+        const move = e => { if (!isDown) return; e.preventDefault(); const y = (e.pageY || e.touches[0].pageY) - element.offsetTop; element.scrollTop = scrollTop - (y - startY); };
+        element.addEventListener('mousedown', start);
+        element.addEventListener('mouseleave', end);
+        element.addEventListener('mouseup', end);
+        element.addEventListener('mousemove', move);
+        element.addEventListener('touchstart', start, { passive: false });
+        element.addEventListener('touchend', end);
+        element.addEventListener('touchmove', move, { passive: false });
+    }
+
 
     if (!window.game) window.game = {};
     if (!window.game.UI) window.game.UI = {};
     
     // 将工具函数挂载到UI命名空间下
     window.game.UI.createElement = createElement;
+    window.game.UI.makeListDraggable = makeListDraggable;
 
 })();
