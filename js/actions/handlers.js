@@ -1,6 +1,6 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v56.0.0 - [新增] remove_effect动作)
+ * @description 动作模块 - ActionBlock执行器 (v59.1.1 - [修复] 修复fullHeal动作)
  */
 (function() {
     'use strict';
@@ -14,23 +14,30 @@
             const state = game.State.get();
             const maxHp = state.maxHp;
             const maxMp = state.maxMp;
-            game.State.applyEffect({ hp: maxHp, mp: maxMp });
+            // [修复] 调用applyEffect时，必须传入目标单位 (state)
+            game.State.applyEffect(state, { hp: maxHp, mp: maxMp });
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fullHeal'), color: 'var(--log-color-success)' });
         }
     };
 
     const actionHandlers = {
-        log({ text, color }) { game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: text, color: color }); },
+        log({ text, color }, targetUnit, triggerContext) { 
+            const formattedText = text.replace(/\${(.*?)}/g, (match, key) => {
+                const formulaResult = game.Utils.evaluateFormula(key, { ...targetUnit, ...targetUnit.effectiveStats, context: triggerContext });
+                return formulaResult;
+            });
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: formattedText, color: color }); 
+        },
         show_toast(payload) { game.Events.publish(EVENTS.UI_SHOW_TOAST, payload); },
         
         start_dialogue(payload) { return game.UI.showNarrative(payload.dialogueId); },
 
-        add_effect(payload) {
+        add_effect(payload, targetUnit) {
             if (payload && payload.effectId) {
-                game.Effects.add(game.State.get(), payload.effectId);
+                const finalTarget = payload.target === 'target' ? game.currentHotspotContext?.target : targetUnit;
+                game.Effects.add(finalTarget || game.State.get(), payload.effectId);
             }
         },
-        // [新增] 移除效果的动作
         remove_effect(payload, targetUnit) {
             const unit = targetUnit || game.State.get();
             if (payload && payload.effectId) {
@@ -38,7 +45,8 @@
             }
         },
 
-        effect(payload) { game.State.applyEffect(payload); },
+        effect(payload, targetUnit, triggerContext) { game.State.applyEffect(targetUnit, payload, triggerContext); },
+        
         action(payload) {
             if (payload && payload.id && namedActions[payload.id]) {
                 namedActions[payload.id]();
@@ -149,21 +157,22 @@
             }
             game.Events.publish(EVENTS.STATE_CHANGED);
         },
-        modify_variable({ varId, operation, value, log, logColor }) {
+        modify_variable({ varId, operation, value, log, logColor }, targetUnit, triggerContext) {
             const state = game.State.get();
             if (!state.variables) state.variables = {};
 
             const oldValue = state.variables[varId] || 0;
+            const finalValue = game.Utils.evaluateFormula(value, { ...targetUnit, ...targetUnit.effectiveStats, context: triggerContext });
 
             switch(operation) {
-                case 'set': state.variables[varId] = value; break;
-                case 'add': state.variables[varId] = oldValue + value; break;
-                case 'subtract': state.variables[varId] = oldValue - value; break;
+                case 'set': state.variables[varId] = finalValue; break;
+                case 'add': state.variables[varId] = oldValue + finalValue; break;
+                case 'subtract': state.variables[varId] = oldValue - finalValue; break;
                 default: console.error(`未知的变量操作: ${operation}`); return;
             }
 
             if (log) {
-                this.log({ text: log, color: logColor });
+                this.log({ text: log, color: logColor }, targetUnit, triggerContext);
             }
             if (state.gameState === 'EXPLORE') {
                 game.Events.publish(EVENTS.UI_RENDER);
@@ -206,16 +215,16 @@
             game.UI.updateSceneBackground(imageUrl);
         }
     };
-
-    async function executeActionBlock(actionBlock, context = null) {
+    
+    async function executeActionBlock(actionBlock, targetUnit, triggerContext = {}) {
         if (!actionBlock) return;
-        const targetUnit = context || game.State.get();
+        const finalTargetUnit = targetUnit || game.State.get();
 
         for (const block of actionBlock) {
             const action = block.action || block;
             const handler = actionHandlers[action.type];
             if (handler) {
-                await handler.call(actionHandlers, action.payload, targetUnit);
+                await handler.call(actionHandlers, action.payload, finalTargetUnit, triggerContext);
             } else {
                 const message = game.Utils.formatMessage('errorUnknownAction', { type: action.type });
                 console.error(message);

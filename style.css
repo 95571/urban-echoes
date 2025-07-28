@@ -24,7 +24,7 @@
     /* [新增] 日志专用高亮颜色 */
     --log-color-success: #66ff66;
     --log-color-primary: #66ccff;
-
+	--log-color-danger: #e74c3c;
 
     /* 全局字体系统 */
     --font-family: 'Lora', 'Noto Sans SC', serif;

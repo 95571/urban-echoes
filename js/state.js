@@ -1,8 +1,8 @@
 /**
  * @file js/state.js
- * @description 游戏状态管理模块 (v52.0.0 - 架构升级 "磐石计划")
+ * @description 游戏状态管理模块 (v59.1.0 - [重构] 适配上下文效果)
  * @author Gemini (CTO)
- * @version 52.0.0
+ * @version 59.1.0
  */
 (function() {
     'use strict';
@@ -55,38 +55,55 @@
                 if (options.screen !== 'STATUS') game.state.menu.skillDetailView = null;
                 if(options.screen !== 'PARTY' && options.screen !== 'STATUS') game.state.menu.statusViewTargetId = null;
             }
-            // [重构] 发布UI渲染事件，而不是直接调用UI模块
             game.Events.publish(EVENTS.UI_RENDER);
         },
-
-        applyEffect(effect) {
-            if (!effect) return;
-            const state = game.state;
+        
+        /**
+         * [修改] applyEffect现在接受 targetUnit 和 triggerContext
+         * @param {object} targetUnit - 效果应用的目标单位
+         * @param {object} effect - 效果负载, e.g., { hp: 10, gold: -5 }
+         * @param {object} [triggerContext={}] - 触发事件的上下文
+         */
+        applyEffect(targetUnit, effect, triggerContext = {}) {
+            if (!effect || !targetUnit) return;
+            const state = this.get();
             let changed = false;
+            
+            // 构建用于公式计算的完整上下文
+            const context = { ...targetUnit, ...targetUnit.effectiveStats, context: triggerContext };
 
             if (effect.stats) {
                 for (const stat in effect.stats) {
-                    state.stats[stat] = Math.max(1, (state.stats[stat] || 0) + effect.stats[stat]);
+                    const value = game.Utils.evaluateFormula(effect.stats[stat], context);
+                    targetUnit.stats[stat] = Math.max(1, (targetUnit.stats[stat] || 0) + value);
                     changed = true;
                 }
             }
-            if (typeof effect.gold === 'number') {
-                state.gold = Math.max(0, (state.gold || 0) + effect.gold);
+            if (typeof effect.gold !== 'undefined') {
+                const value = game.Utils.evaluateFormula(effect.gold, context);
+                state.gold = Math.max(0, (state.gold || 0) + value);
                 changed = true;
             }
-            if(typeof effect.hp === 'number') {
-                state.hp = Math.max(0, Math.min(state.maxHp, state.hp + effect.hp));
+            if(typeof effect.hp !== 'undefined') {
+                const value = game.Utils.evaluateFormula(effect.hp, context);
+                targetUnit.hp = Math.max(0, Math.min(targetUnit.maxHp, (targetUnit.hp || 0) + value));
                 changed = true;
             }
-            if(typeof effect.mp === 'number') {
-                state.mp = Math.max(0, Math.min(state.maxMp, state.mp + effect.mp));
+            if(typeof effect.mp !== 'undefined') {
+                const value = game.Utils.evaluateFormula(effect.mp, context);
+                targetUnit.mp = Math.max(0, Math.min(targetUnit.maxMp, (targetUnit.mp || 0) + value));
                 changed = true;
             }
 
             if (changed) {
-                this.updateAllStats(false);
-                // [重构] 发布状态变更事件
-                game.Events.publish(EVENTS.STATE_CHANGED);
+                // 如果是玩家，则更新全局状态
+                if (targetUnit.id === 'player') {
+                    this.updateAllStats(false);
+                    game.Events.publish(EVENTS.STATE_CHANGED);
+                } else {
+                    // 如果是其他单位（如敌人），只需确保UI能刷新即可
+                    game.Events.publish(EVENTS.UI_RENDER);
+                }
             }
         }
     };

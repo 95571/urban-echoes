@@ -1,8 +1,8 @@
 /**
  * @file js/effects.js
- * @description 统一效果修正系统 (v58.0.0 - [重构] 实现公式化动态属性)
+ * @description 统一效果修正系统 (v59.1.1 - [修复] 修正事件触发逻辑)
  * @author Gemini (CTO)
- * @version 58.0.0
+ * @version 59.1.1
  */
 (function() {
     'use strict';
@@ -11,11 +11,13 @@
 
     let nextEffectInstanceId = 0;
 
-    function applyInstantModifiersToUnit(unit, modifiers) {
+    function applyInstantModifiersToUnit(unit, modifiers, context = {}) {
         if (!modifiers) return;
+        const fullContext = { ...unit, ...unit.effectiveStats, context: context };
+        
         for (const stat in modifiers) {
-            const value = modifiers[stat];
-            if (typeof value !== 'number') continue;
+            const value = game.Utils.evaluateFormula(modifiers[stat], fullContext);
+            if (typeof value !== 'number' || isNaN(value)) continue;
 
             if (stat === 'hp') {
                 unit.hp = Math.max(0, Math.min(unit.maxHp, (unit.hp || 0) + value));
@@ -29,9 +31,40 @@
         }
     }
 
+    const TriggerManager = {
+        async processEvent(eventName, context) {
+            // [修复] 只检查事件的源头单位 (context.source)，而不是所有参与单位
+            const unit = context.source;
+            if (!unit || !unit.activeEffects || unit.hp <= 0) return;
+
+            for (const effect of [...unit.activeEffects]) {
+                if (!effect.triggers) continue;
+
+                for (const trigger of effect.triggers) {
+                    if (trigger.event === eventName) {
+                        if (game.ConditionChecker.evaluate(trigger.conditions, context)) {
+                            // 将 effect 的源单位（持有者）作为目标传入 executeActionBlock
+                            await game.Actions.executeActionBlock(trigger.actionBlock, unit, context);
+                        }
+                    }
+                }
+            }
+        }
+    };
+
     const Effects = {
         init() {
             game.Events.subscribe(EVENTS.TIME_ADVANCED, () => this.tick(game.State.get()));
+            
+            const combatEvents = [
+                EVENTS.COMBAT_ATTACK_START, EVENTS.COMBAT_ATTACK_END,
+                EVENTS.COMBAT_TAKE_DAMAGE_START, EVENTS.COMBAT_TAKE_DAMAGE_END,
+                EVENTS.COMBAT_DEFEND,
+                EVENTS.COMBAT_TURN_START, EVENTS.COMBAT_TURN_END
+            ];
+            combatEvents.forEach(eventName => {
+                game.Events.subscribe(eventName, (context) => TriggerManager.processEvent(eventName, context));
+            });
         },
 
         async add(unit, effectId) {
@@ -43,35 +76,32 @@
 
             if (!unit.activeEffects) unit.activeEffects = [];
 
-            // 步骤1: 应用即时效果
             if (effectData.instantModifiers) {
                 applyInstantModifiersToUnit(unit, effectData.instantModifiers);
             }
 
-            // 步骤2: 执行周期性效果的第一跳 (如果适用)
-            if (effectData.onTickActionBlock && effectData.onTickActionBlock.length > 0) {
-                await game.Actions.executeActionBlock(effectData.onTickActionBlock, unit);
+            if (effectData.onApplyActionBlock) {
+                 await game.Actions.executeActionBlock(effectData.onApplyActionBlock, unit);
             }
             
-            // 步骤3: 注册持续性效果
             const initialDuration = effectData.duration || 0;
-            const remainingDuration = (effectData.onTickActionBlock && initialDuration > 0) ? initialDuration - 1 : initialDuration;
 
-            if (remainingDuration !== 0) { 
+            if (initialDuration !== 0) {
                 const existingEffect = unit.activeEffects.find(e => e.id === effectId);
                 
-                if (existingEffect && effectData.duration !== -1) {
-                    existingEffect.duration = remainingDuration; 
+                if (existingEffect && effectData.duration !== -1 && effectData.stackable === false) {
+                    existingEffect.duration = initialDuration; 
                     if (unit.id === 'player') game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `效果 [${effectData.name}] 的持续时间已刷新。`, color: 'var(--skill-color)' });
-                } else if (!existingEffect || effectData.duration === -1) { 
+                } else { 
                     const newEffectInstance = {
                         instanceId: nextEffectInstanceId++,
                         id: effectId, name: effectData.name || '未知效果', icon: effectData.icon || '❓',
                         description: effectData.description || '', type: effectData.type || 'buff',
-                        duration: remainingDuration,
+                        duration: initialDuration,
                         isHidden: effectData.isHidden || false,
                         persistentModifiers: effectData.persistentModifiers || [],
-                        onTickActionBlock: effectData.onTickActionBlock || []
+                        onTickActionBlock: effectData.onTickActionBlock || [],
+                        triggers: effectData.triggers || []
                     };
                     unit.activeEffects.push(newEffectInstance);
                     if (unit.id === 'player' && !effectData.isHidden) game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `你获得了效果：[${effectData.name}]`, color: 'var(--log-color-success)' });
@@ -100,42 +130,31 @@
         
         removeById(unit, effectId) {
             if (!unit.activeEffects) return;
-            const effectToRemove = unit.activeEffects.find(e => e.id === effectId);
-            if (effectToRemove) {
-                this.remove(unit, effectToRemove.instanceId);
+            const effectsToRemove = unit.activeEffects.filter(e => e.id === effectId);
+            if (effectsToRemove.length > 0) {
+                effectsToRemove.forEach(effect => this.remove(unit, effect.instanceId));
             }
         },
 
         async tick(unit) {
             if (!unit || !unit.activeEffects) return;
             
-            const effectsToRemove = [];
-            const tickActions = [];
-
-            for (const effect of unit.activeEffects) {
-                if (effect.duration > 0) {
-                     if (effect.onTickActionBlock && effect.onTickActionBlock.length > 0) {
-                        tickActions.push({ actionBlock: effect.onTickActionBlock, unit: unit });
-                    }
+            for (const effect of [...unit.activeEffects]) {
+                 if (effect.onTickActionBlock && effect.onTickActionBlock.length > 0) {
+                    await game.Actions.executeActionBlock(effect.onTickActionBlock, unit);
                 }
-            }
-
-            for (const item of tickActions) {
-                 await game.Actions.executeActionBlock(item.actionBlock, item.unit);
             }
 
             for (const effect of [...unit.activeEffects]) {
                  if (effect.duration > 0) {
                     effect.duration--;
                     if (effect.duration === 0) {
-                        effectsToRemove.push(effect.instanceId);
+                        this.remove(unit, effect.instanceId);
                     }
                 }
             }
             
-            if (effectsToRemove.length > 0) {
-                effectsToRemove.forEach(instanceId => this.remove(unit, instanceId));
-            } else if (tickActions.length > 0 && unit.id === 'player') {
+            if (unit.id === 'player') {
                  game.Events.publish(EVENTS.STATE_CHANGED);
             }
         },
@@ -147,13 +166,8 @@
             unit.activeEffects.forEach(effect => {
                 (effect.persistentModifiers || []).forEach(modifier => {
                     if (modifier.targetStat === stat) {
-                        if (typeof modifier.value === 'number') {
-                            totalModifier += modifier.value;
-                        } 
-                        else if (typeof modifier.formula === 'string') {
-                            const formulaResult = game.Utils.evaluateFormula(modifier.formula, unit);
-                            totalModifier += formulaResult;
-                        }
+                        const formulaResult = game.Utils.evaluateFormula(modifier.value || modifier.formula, unit);
+                        totalModifier += formulaResult;
                     }
                 });
             });
@@ -162,6 +176,8 @@
         
         applyInstantModifiersToUnit: applyInstantModifiersToUnit
     };
+    
+    Effects.processEvent = TriggerManager.processEvent;
     
     if (!window.game.Effects) window.game.Effects = {};
     Object.assign(window.game.Effects, Effects);

@@ -1,8 +1,8 @@
 /**
  * @file js/utils.js
- * @description 通用工具与条件检查器模块 (v58.4.0 - [终极修复] 重构属性计算流水线)
+ * @description 通用工具与条件检查器模块 (v59.2.0 - [修复] 派生属性取整)
  * @author Gemini (CTO)
- * @version 58.4.0
+ * @version 59.2.0
  */
 (function() {
     'use strict';
@@ -10,35 +10,36 @@
     const gameData = window.gameData;
 
     const ConditionChecker = {
-        evaluate(conditions) {
+        evaluate(conditions, context = {}) {
             if (!conditions || conditions.length === 0) return true;
             for (const condition of conditions) {
+                const fullContext = { ...game.State.get(), ...context };
                 const handler = this.conditionHandlers[condition.type];
-                if (!handler || !handler(condition)) {
+                if (!handler || !handler(condition, fullContext)) {
                     return false;
                 }
             }
             return true;
         },
 
-        evaluateSingle(condition) {
+        evaluateSingle(condition, context = {}) {
+            const fullContext = { ...game.State.get(), ...context };
             const handler = this.conditionHandlers[condition.type];
-            return handler ? handler(condition) : false;
+            return handler ? handler(condition, fullContext) : false;
         },
 
         conditionHandlers: {
-            time(condition) {
-                return condition.allowedPhases.includes(game.State.get().time.phase);
+            time(condition, context) {
+                return condition.allowedPhases.includes(context.time.phase);
             },
-            stat(condition) {
-                const state = game.State.get();
-                const effectiveStats = state.effectiveStats || state.stats;
+            stat(condition, context) {
+                const effectiveStats = context.effectiveStats || context.stats;
                 let statValue;
 
                 if (condition.stat in effectiveStats) {
                     statValue = effectiveStats[condition.stat];
-                } else if (condition.stat in state) {
-                    statValue = state[condition.stat];
+                } else if (condition.stat in context) {
+                    statValue = context[condition.stat];
                 } else {
                     statValue = 0;
                 }
@@ -53,20 +54,29 @@
                     default: return false;
                 }
             },
-            variable(condition) {
-                const varValue = game.State.get().variables[condition.varId] || 0;
+            variable(condition, context) {
+                const varValue = context.variables[condition.varId] || 0;
+                let compareToValue;
+
+                if (typeof condition.value === 'string' && condition.value.startsWith('variables.')) {
+                    const targetVarId = condition.value.substring(10);
+                    compareToValue = context.variables[targetVarId] || 0;
+                } else {
+                    compareToValue = condition.value;
+                }
+
                  switch (condition.comparison) {
-                    case '>':  return varValue > condition.value;
-                    case '<':  return varValue < condition.value;
-                    case '>=': return varValue >= condition.value;
-                    case '<=': return varValue <= condition.value;
-                    case '==': return varValue == condition.value;
-                    case '!=': return varValue != condition.value;
+                    case '>':  return varValue > compareToValue;
+                    case '<':  return varValue < compareToValue;
+                    case '>=': return varValue >= compareToValue;
+                    case '<=': return varValue <= compareToValue;
+                    case '==': return varValue == compareToValue;
+                    case '!=': return varValue != compareToValue;
                     default: return false;
                 }
             },
-            has_item(condition) {
-                const inventory = game.State.get().inventory;
+            has_item(condition, context) {
+                const inventory = context.inventory;
                 const requiredQuantity = condition.quantity || 1;
                 let currentQuantity = 0;
                 for (const item of inventory) {
@@ -75,6 +85,10 @@
                     }
                 }
                 return currentQuantity >= requiredQuantity;
+            },
+            random(condition) {
+                const chance = condition.chance || 0;
+                return (Math.random() * 100) < chance;
             }
         }
     };
@@ -92,35 +106,44 @@
         },
 
         evaluateFormula(formula, context) {
+            if (typeof formula === 'number') {
+                return formula;
+            }
+            if (typeof formula !== 'string') {
+                console.warn(`evaluateFormula expects a string or number, but got ${typeof formula}. Returning 0.`);
+                return 0;
+            }
+
             try {
                 if (!context) throw new Error("公式计算需要一个上下文对象。");
 
-                const contextKeys = Object.keys(context);
-                const contextValues = Object.values(context);
+                const flatContext = { ...context, ...(context.context || {}) };
+                const contextKeys = Object.keys(flatContext);
+                const contextValues = Object.values(flatContext);
                 const floor = Math.floor;
-                const safeEval = new Function('floor', ...contextKeys, `return ${formula}`);
-                
-                const result = safeEval(floor, ...contextValues);
+                const ceil = Math.ceil;
+                const round = Math.round;
+                const random = Math.random;
+
+                const safeEval = new Function('floor', 'ceil', 'round', 'random', ...contextKeys, `return ${formula}`);
+                const result = safeEval(floor, ceil, round, random, ...contextValues);
                 return isNaN(result) ? 0 : result;
 
             } catch (e) {
                 if (e instanceof ReferenceError) {
-                   return 0; // 公式中引用的变量在上下文中不存在，按0处理
+                   return 0;
                 }
                 console.error(`公式计算错误: "${formula}"`, e);
                 return 0;
             }
         },
 
-        // [核心重构] 属性计算流水线 V6.0 - 终极修正版
         calculateEffectiveStatsForUnit(unit) {
             const effectiveStats = { ...(unit.stats || { str: 0, dex: 0, int: 0, con: 0, lck: 0 }) };
             const coreStatKeys = Object.keys(unit.stats || {});
             const derivedStatKeys = Object.keys(gameData.formulas_primary);
 
-            // --- Pass 1: 计算最终的核心属性 ---
-            // a. 基础核心属性
-            // b. 装备的基础核心属性
+            // Pass 1: Core stats
             if (unit.equipped) {
                 for (const slotId in unit.equipped) {
                     const item = gameData.items[unit.equipped[slotId]?.itemId];
@@ -133,41 +156,35 @@
                     }
                 }
             }
-            // c. 技能被动
             game.Perk.applyPassiveEffects(unit, effectiveStats);
             
-            // d. Buff系统对核心属性的修正
             if (unit.activeEffects) {
                 unit.activeEffects.forEach(effect => {
                     (effect.persistentModifiers || []).forEach(modifier => {
                         if (coreStatKeys.includes(modifier.targetStat)) {
                             const tempContext = { ...unit, ...effectiveStats, ...unit.stats };
-                            if (typeof modifier.value === 'number') {
-                                effectiveStats[modifier.targetStat] += modifier.value;
-                            } else if (typeof modifier.formula === 'string') {
-                                effectiveStats[modifier.targetStat] += this.evaluateFormula(modifier.formula, tempContext);
-                            }
+                            effectiveStats[modifier.targetStat] += this.evaluateFormula(modifier.value || modifier.formula, tempContext);
                         }
                     });
                 });
             }
             
-            // --- Pass 2: 基于最终的核心属性，构建最终计算上下文 ---
+            // Pass 2: Build final context
             const finalContext = { ...unit, ...effectiveStats };
             finalContext.variables = game.State.get().variables || {};
+            finalContext.skillLevel = (skillId) => (game.State.get()?.skillState?.[skillId]?.level || 0);
 
-            // --- Pass 3: 计算自定义公式变量 ("备菜") ---
+            // Pass 3: Custom formulas
             const customFormulas = gameData.formulas?.custom || {};
             for (const key in customFormulas) {
                 finalContext[key] = this.evaluateFormula(customFormulas[key], finalContext);
             }
             
-            // --- Pass 4: 计算派生属性 ---
+            // Pass 4: Derived stats
             for (const key of derivedStatKeys) {
                 effectiveStats[key] = this.evaluateFormula(gameData.formulas_primary[key], finalContext);
             }
             
-            // a. 装备对派生属性的修正
             if (unit.equipped) {
                 for (const slotId in unit.equipped) {
                     const item = gameData.items[unit.equipped[slotId]?.itemId];
@@ -181,28 +198,28 @@
                 }
             }
 
-            // b. Buff系统对派生属性的修正
             if (unit.activeEffects) {
                  unit.activeEffects.forEach(effect => {
                     (effect.persistentModifiers || []).forEach(modifier => {
                         if (derivedStatKeys.includes(modifier.targetStat)) {
-                             // 使用包含自定义变量的 finalContext
                             const contextForDerived = { ...finalContext, ...effectiveStats };
-                            if (typeof modifier.value === 'number') {
-                                effectiveStats[modifier.targetStat] += modifier.value;
-                            } else if (typeof modifier.formula === 'string') {
-                                effectiveStats[modifier.targetStat] += this.evaluateFormula(modifier.formula, contextForDerived);
-                            }
+                            effectiveStats[modifier.targetStat] += this.evaluateFormula(modifier.value || modifier.formula, contextForDerived);
                         }
                     });
                 });
             }
             
-            // 将计算好的自定义变量附加到最终结果上，以便调试器等模块访问
-             for (const key in customFormulas) {
-                effectiveStats[key] = finalContext[key];
+            // [新增] Pass 5: Final rounding
+            // 对所有派生属性向下取整，确保游戏数值的稳定与可预测性
+            for (const key of derivedStatKeys) {
+                if (typeof effectiveStats[key] === 'number') {
+                    effectiveStats[key] = Math.floor(effectiveStats[key]);
+                }
             }
 
+            for (const key in customFormulas) {
+                effectiveStats[key] = finalContext[key];
+            }
 
             return effectiveStats;
         }

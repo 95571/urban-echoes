@@ -1,7 +1,7 @@
 /**
  * @file data/constants.js
- * @description 游戏内容 - 全局常量 (v52.0.0)
- * @description [新增] 引入常量系统，消除魔法字符串。
+ * @description 游戏内容 - 全局常量 (v59.1.0)
+ * @description [新增] 为效果触发系统增加战斗事件常量
  */
 
 window.gameData.constants = {
@@ -20,6 +20,15 @@ window.gameData.constants = {
         // 流程事件
         GAME_SAVED: 'game:saved', // 游戏存档完成
         GAME_LOADED: 'game:loaded', // 游戏读档完成
+        
+        // [新增] 战斗事件 (用于效果触发系统)
+        COMBAT_ATTACK_START: 'combat:attack:start',   // 攻击动作开始时 (攻击者)
+        COMBAT_ATTACK_END: 'combat:attack:end',       // 攻击动作结束时 (攻击者)
+        COMBAT_TAKE_DAMAGE_START: 'combat:take_damage:start', // 受到伤害前 (防御者)
+        COMBAT_TAKE_DAMAGE_END: 'combat:take_damage:end',   // 受到伤害后 (防御者)
+        COMBAT_DEFEND: 'combat:defend',                 // 执行防御动作时
+        COMBAT_TURN_START: 'combat:turn:start',           // 单位回合开始时
+        COMBAT_TURN_END: 'combat:turn:end',             // 单位回合结束时
     },
 
     // 变量ID

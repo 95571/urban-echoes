@@ -69,11 +69,13 @@ window.gameData.items = {
         effect: { attack: 2 }, 
         // onEquipActionBlock 代表装备的【附加/附魔属性】，可通过移除Buff来改变
         onEquipActionBlock: [
-            { action: { type: 'add_effect', payload: { effectId: 'eff_sharpness' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_precision_mastery' } } },
+			{ action: { type: 'add_effect', payload: { effectId: 'eff_sharpness' } } },
             { action: { type: 'add_effect', payload: { effectId: 'eff_swiftness' } } }
         ],
         onUnequipActionBlock: [
-            { action: { type: 'remove_effect', payload: { effectId: 'eff_sharpness' } } },
+            { action: { type: 'remove_effect', payload: { effectId: 'eff_precision_mastery' } } },
+			{ action: { type: 'remove_effect', payload: { effectId: 'eff_sharpness' } } },
             { action: { type: 'remove_effect', payload: { effectId: 'eff_swiftness' } } }
         ]
     },

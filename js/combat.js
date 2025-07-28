@@ -1,8 +1,8 @@
 /**
  * @file js/combat.js
- * @description 战斗系统模块 (v52.2.1 - [优化] 调整日志颜色)
+ * @description 战斗系统模块 (v59.2.0 - [修复] 规范化日志颜色)
  * @author Gemini (CTO)
- * @version 55.2.0
+ * @version 59.2.0
  */
 (function() {
     'use strict';
@@ -17,23 +17,29 @@
                 return;
             }
 
-            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('encounter'), color: 'var(--error-color)' });
+            // [修复] 使用CSS变量
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('encounter'), color: 'var(--log-color-danger)' });
             gameState.isCombat = true;
 
             const createCombatant = (template, type, combatId) => {
                 const combatant = JSON.parse(JSON.stringify(template));
-                combatant.effectiveStats = game.Utils.calculateEffectiveStatsForUnit(template);
+                if (!combatant.activeEffects) combatant.activeEffects = [];
+                (combatant.passiveEffects || []).forEach(effectId => {
+                    if (!combatant.activeEffects.some(e => e.id === effectId)) {
+                        game.Effects.add(combatant, effectId);
+                    }
+                });
+                combatant.effectiveStats = game.Utils.calculateEffectiveStatsForUnit(combatant);
                 combatant.maxHp = combatant.effectiveStats.maxHp;
                 combatant.maxMp = combatant.effectiveStats.maxMp;
                 combatant.hp = combatant.maxHp;
                 combatant.mp = combatant.maxMp;
                 combatant.hasTakenExtraTurnThisRound = false;
-                combatant.activeEffects = combatant.activeEffects || []; // 确保有效果数组
-
+                
                 if (type === 'player') {
                     combatant.hp = gameState.hp;
                     combatant.mp = gameState.mp;
-                    combatant.activeEffects = gameState.activeEffects; // 玩家状态同步
+                    combatant.activeEffects = JSON.parse(JSON.stringify(gameState.activeEffects));
                 }
 
                 return { ...combatant, type, combatId, isDefending: false };
@@ -53,8 +59,7 @@
             });
 
             const playerCombatant = createCombatant(gameState, 'player', 'player_0');
-            playerCombatant.effectiveStats = gameState.effectiveStats;
-
+            
             gameState.combatState = {
                 playerParty: [playerCombatant],
                 enemies: enemies,
@@ -76,14 +81,10 @@
 
         startRound() {
             const cs = game.State.get().combatState;
-            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('newRound'), color: 'var(--secondary-color)' });
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('newRound'), color: 'var(--log-color-primary)' });
             
-            // [修改] 在回合开始时，为所有单位处理效果Tick
             [...cs.playerParty, ...cs.enemies].forEach(u => {
                 u.hasTakenExtraTurnThisRound = false;
-                if (u.hp > 0) {
-                    game.Effects.tick(u);
-                }
             });
             
             cs.turnOrder = [...cs.playerParty, ...cs.enemies]
@@ -92,7 +93,7 @@
             this.nextTurn();
         },
 
-        nextTurn() {
+        async nextTurn() {
             const cs = game.State.get().combatState;
             if (!cs || cs.isOver) return;
 
@@ -110,20 +111,32 @@
                 return;
             }
 
-            this.doTurn(unit);
+            await this.doTurn(unit);
         },
 
-        doTurn(unit) {
+        async doTurn(unit) {
             const cs = game.State.get().combatState;
             unit.isDefending = false;
             cs.activeUnit = unit;
+            
+            game.Events.publish(EVENTS.COMBAT_TURN_START, { source: unit });
+            await game.Effects.tick(unit);
+
+            if (unit.hp <= 0) {
+                this.endTurn(unit);
+                return;
+            }
+
             game.Events.publish(EVENTS.UI_RENDER);
+
             if (unit.type === 'player') {
                 this.waitForPlayerInput();
             } else {
-                setTimeout(() => {
+                setTimeout(async () => {
                     const target = cs.playerParty.find(p => p.hp > 0);
-                    if(target) this.performAttack(unit, target);
+                    if(target) {
+                        await this.performAttack(unit, target);
+                    }
                     this.endTurn(unit);
                 }, 800);
             }
@@ -137,14 +150,16 @@
             game.Events.publish(EVENTS.UI_RENDER);
         },
 
-        endTurn(unit) {
+        async endTurn(unit) {
             const cs = game.State.get().combatState;
             if (!cs || cs.isOver) return;
             cs.isWaitingForPlayerInput = false;
 
+            game.Events.publish(EVENTS.COMBAT_TURN_END, { source: unit });
+            
             const extraTurnCheck = this.checkForExtraTurn(unit);
             if (extraTurnCheck.triggered) {
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('extraTurnSuccess', {name: unit.name}), color: 'var(--primary-color)' });
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('extraTurnSuccess', {name: unit.name}), color: 'var(--log-color-primary)' });
                 setTimeout(() => this.doTurn(unit), 500);
             } else {
                 cs.activeUnit = null;
@@ -164,10 +179,10 @@
 
             const selfSpd = unit.effectiveStats.spd || 10;
             const avgOpponentSpd = opponents.reduce((sum, o) => sum + (o.effectiveStats.spd || 10), 0) / opponents.length;
-
+            
             const speedAdvantage = selfSpd - avgOpponentSpd;
-            const chance = Math.max(0, 0.05 + speedAdvantage * 0.02);
-            const cappedChance = Math.min(chance, 0.5);
+            const chance = 0.05 + speedAdvantage * 0.02;
+            const cappedChance = Math.min(Math.max(0, chance), 0.5);
 
             if (Math.random() < cappedChance) {
                 unit.hasTakenExtraTurnThisRound = true;
@@ -180,18 +195,17 @@
             const cs = game.State.get().combatState;
             if (!cs || !cs.isWaitingForPlayerInput) return;
             const player = cs.playerParty[0];
-
-            callback(player);
-
-            if (!game.State.get().isCombat) return;
-
             cs.isWaitingForPlayerInput = false;
             game.Events.publish(EVENTS.UI_RENDER);
-
-            setTimeout(() => this.endTurn(player), 200);
+            (async () => {
+                await callback(player);
+                if (game.State.get().isCombat) {
+                    this.endTurn(player);
+                }
+            })();
         },
 
-        playerAttack() { this.playerAction(player => {
+        playerAttack() { this.playerAction(async (player) => {
             const cs = game.State.get().combatState;
             const livingEnemies = cs.enemies.filter(e => e.hp > 0);
             if (livingEnemies.length === 0) return;
@@ -200,11 +214,12 @@
                 target = livingEnemies[0];
                 cs.focusedTargetId = target.combatId;
             }
-            this.performAttack(player, target);
+            await this.performAttack(player, target);
         })},
 
         playerDefend() { this.playerAction(player => {
             player.isDefending = true;
+            game.Events.publish(EVENTS.COMBAT_DEFEND, { source: player });
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('defendAction', {name: player.name}) });
         })},
 
@@ -225,77 +240,63 @@
 
         triggerAnimation(element, animationClass) {
             if (!element || element.classList.contains(animationClass)) return;
-
-            const animationEndHandler = () => {
-                element.classList.remove(animationClass);
-                element.removeEventListener('animationend', animationEndHandler);
-            };
-            element.addEventListener('animationend', animationEndHandler);
             element.classList.add(animationClass);
+            element.addEventListener('animationend', () => element.classList.remove(animationClass), { once: true });
         },
 
         showDamagePopup(damage, targetUnit) {
              const targetEl = document.getElementById(targetUnit.combatId);
             if (!targetEl) return;
-
             const screenEl = game.dom.screen;
             const popup = document.createElement('span');
-            popup.textContent = '-' + damage;
+            popup.textContent = '-' + Math.round(damage);
             popup.className = 'damage-popup';
-
             screenEl.appendChild(popup);
-
             const targetRect = targetEl.getBoundingClientRect();
             const screenRect = screenEl.getBoundingClientRect();
-
-            const popupLeft = (targetRect.left + targetRect.width / 2) - screenRect.left - (popup.offsetWidth / 2);
-            const popupTop = targetRect.top - screenRect.top - popup.offsetHeight;
-
-            popup.style.left = `${popupLeft}px`;
-            popup.style.top = `${popupTop}px`;
-
-            popup.addEventListener('animationend', () => {
-                popup.remove();
-            });
+            popup.style.left = `${(targetRect.left + targetRect.width / 2) - screenRect.left - (popup.offsetWidth / 2)}px`;
+            popup.style.top = `${targetRect.top - screenRect.top - popup.offsetHeight}px`;
+            popup.addEventListener('animationend', () => popup.remove());
         },
 
-        performAttack(attacker, defender) {
-            const attackerEl = document.getElementById(attacker.combatId);
-            const defenderEl = document.getElementById(defender.combatId);
+        async performAttack(attacker, defender) {
+            const attackStartContext = { source: attacker, target: defender };
+            await game.Events.publish(EVENTS.COMBAT_ATTACK_START, attackStartContext);
 
-            if (attacker.type === 'enemy' && attackerEl) {
-                this.triggerAnimation(attackerEl, 'combatant-attack');
-            }
+            const attackerEl = document.getElementById(attacker.combatId);
+            if (attacker.type === 'enemy' && attackerEl) this.triggerAnimation(attackerEl, 'combatant-attack');
 
             const defenseModifier = defender.isDefending ? 0.5 : 1;
-            let damage = Math.max(1, Math.floor(((attacker.effectiveStats.attack || 5) - (defender.effectiveStats.defense || 0)) * defenseModifier));
+            const currentAttackerStats = game.Utils.calculateEffectiveStatsForUnit(attacker);
+            let damage = Math.max(1, ((currentAttackerStats.attack || 5) - (defender.effectiveStats.defense || 0)) * defenseModifier);
 
-            const damageDelay = (attacker.type === 'enemy') ? 150 : 0;
+            const takeDamageStartContext = { source: defender, target: attacker, damageDealt: damage };
+            await game.Events.publish(EVENTS.COMBAT_TAKE_DAMAGE_START, takeDamageStartContext);
+            
+            await new Promise(resolve => setTimeout(resolve, (attacker.type === 'enemy') ? 150 : 0));
 
-            setTimeout(() => {
-                defender.hp = Math.max(0, defender.hp - damage);
+            defender.hp = Math.max(0, defender.hp - damage);
+            const defenderEl = document.getElementById(defender.combatId);
+            if (defenderEl) this.triggerAnimation(defenderEl, 'combatant-hit');
+            this.showDamagePopup(damage, defender);
 
-                if (defenderEl) {
-                    this.triggerAnimation(defenderEl, 'combatant-hit');
-                }
-                this.showDamagePopup(damage, defender);
+            if (defender.type === 'player') {
+                 game.State.get().hp = defender.hp;
+                 game.Events.publish(EVENTS.STATE_CHANGED);
+            }
+            
+            // [修复] 使用CSS变量
+            const logColor = attacker.type === 'enemy' ? 'var(--log-color-danger)' : 'var(--log-color-success)';
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('attackDamage', { attackerName: attacker.name, defenderName: defender.name, damage: Math.round(damage) }), color: logColor });
+            
+            const eventContext = { source: attacker, target: defender, damageDealt: damage };
+            await game.Events.publish(EVENTS.COMBAT_TAKE_DAMAGE_END, eventContext);
+            await game.Events.publish(EVENTS.COMBAT_ATTACK_END, eventContext);
 
-                if (defender.type === 'player') {
-                    const mainPlayerState = game.State.get();
-                    mainPlayerState.hp = defender.hp;
-                    game.Events.publish(EVENTS.STATE_CHANGED);
-                }
-                
-                const messageColor = attacker.type === 'enemy' ? 'var(--error-color)' : 'var(--log-color-success)';
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('attackDamage', { attackerName: attacker.name, defenderName: defender.name, damage: damage }), color: messageColor });
-
-                if (defender.hp === 0) {
-                    game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unitDefeated', { unitName: defender.name }), color: 'var(--text-muted-color)' });
-                    if(game.State.get().combatState.focusedTargetId === defender.combatId) {
-                        game.State.get().combatState.focusedTargetId = null;
-                    }
-                }
-            }, damageDelay);
+            if (defender.hp === 0) {
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unitDefeated', { unitName: defender.name }), color: 'var(--text-muted-color)' });
+                if(game.State.get().combatState.focusedTargetId === defender.combatId) game.State.get().combatState.focusedTargetId = null;
+            }
         },
 
         async end(outcome) {
@@ -304,56 +305,40 @@
             if (!combatState || combatState.isOver) return;
             combatState.isOver = true;
 
-            let message;
-            if (outcome === 'win') {
-                message = combatState.victoryPrompt || game.Utils.formatMessage('combatWinPrompt');
-            } else if (outcome === 'loss') {
-                message = combatState.defeatPrompt || game.Utils.formatMessage('combatLossPrompt');
-            } else {
-                message = '';
-            }
-            
-            const logMessage = outcome === 'win' ? game.Utils.formatMessage('combatWin') :
-                               outcome === 'loss' ? game.Utils.formatMessage('combatLoss') :
-                               '';
-            const logColor = outcome === 'win' ? 'var(--log-color-success)' : 'var(--error-color)';
-            if (logMessage) game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: logMessage, color: logColor });
-
-            if (outcome !== 'fled' && message) {
-                 await game.UI.showMessage(message);
-            }
-
-            gameState.isCombat = false;
-            const victoryActionBlock = combatState.victoryActionBlock;
-            const defeatActionBlock = combatState.defeatActionBlock;
-
-            // [修改] 战斗结束后，将战斗中的临时状态同步回主玩家状态
             const playerCombatant = combatState.playerParty[0];
             gameState.hp = playerCombatant.hp;
             gameState.mp = playerCombatant.mp;
             gameState.activeEffects = playerCombatant.activeEffects;
+            game.Events.publish(EVENTS.STATE_CHANGED);
 
+            let message = outcome === 'win' ? (combatState.victoryPrompt || game.Utils.formatMessage('combatWinPrompt')) :
+                          outcome === 'loss' ? (combatState.defeatPrompt || game.Utils.formatMessage('combatLossPrompt')) : '';
+            
+            // [修复] 使用CSS变量
+            const logMessage = outcome === 'win' ? game.Utils.formatMessage('combatWin') : outcome === 'loss' ? game.Utils.formatMessage('combatLoss') : '';
+            if (logMessage) game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: logMessage, color: outcome === 'win' ? 'var(--log-color-success)' : 'var(--log-color-danger)' });
+
+            if (outcome !== 'fled' && message) await game.UI.showMessage(message);
+            
+            gameState.isCombat = false; 
             delete gameState.combatState;
             game.UI.isCombatScreenInitialized = false;
             game.State.setUIMode('EXPLORE');
 
-            if (outcome === 'win' && victoryActionBlock) {
-                await game.Actions.executeActionBlock(victoryActionBlock);
-            } else if (outcome === 'loss' && defeatActionBlock) {
-                await game.Actions.executeActionBlock(defeatActionBlock);
+            if (outcome === 'win' && combatState.victoryActionBlock) {
+                await game.Actions.executeActionBlock(combatState.victoryActionBlock);
+            } else if (outcome === 'loss' && combatState.defeatActionBlock) {
+                await game.Actions.executeActionBlock(combatState.defeatActionBlock);
             }
-             game.Events.publish(EVENTS.STATE_CHANGED); // 确保战斗结束后UI刷新
         },
 
         getCombatActionAvailability() {
             const gameState = game.State.get();
             if (!gameState.isCombat) return {};
             return {
-                attack: true,
-                defend: true,
+                attack: true, defend: true, flee: gameState.combatState.fleeable,
                 skill: false,
                 item: gameState.inventory.some(i => gameData.items[i.id]?.type === 'consumable'),
-                flee: gameState.combatState.fleeable,
             };
         }
     };
