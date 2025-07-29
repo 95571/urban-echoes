@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v60.0.0 - [新增] 装备选择弹窗接口)
+ * @description UI核心模块 (v60.1.0 - [优化] 扩展showItemDetails接口)
  * @author Gemini (CTO)
- * @version 60.0.0
+ * @version 60.1.0
  */
 (function() {
     'use strict';
@@ -336,11 +336,23 @@
         showMessage(text) { return this.ModalManager.push({ type: 'custom', payload: { title: gameData.systemMessages.systemConfirm.title, html: `<p>${text}</p>` } }); },
         showJobBoard(payload) { return this.ModalManager.push({ type: 'job_board', payload }); },
         showJobDetails(jobId) { return this.ModalManager.push({ type: 'job_details', payload: { jobId } }); },
-        showItemDetails(inventoryIndex) {
+        
+        // [修改] showItemDetails现在接受一个可选的payloadOverrides对象
+        showItemDetails(inventoryIndex, payloadOverrides = {}) {
             const item = game.State.get().inventory[inventoryIndex];
             if (!item) return;
-            return this.ModalManager.push({ type: 'item_details', payload: { item, itemData: gameData.items[item.id], index: inventoryIndex }});
+
+            const basePayload = {
+                item: item,
+                itemData: gameData.items[item.id],
+                index: inventoryIndex,
+            };
+
+            const finalPayload = { ...basePayload, ...payloadOverrides };
+
+            return this.ModalManager.push({ type: 'item_details', payload: finalPayload });
         },
+
         // [新增] 装备选择弹窗的快捷方式
         showEquipmentSelection(slotId) {
             return this.ModalManager.push({ type: 'equipment_selection', payload: { slotId } });

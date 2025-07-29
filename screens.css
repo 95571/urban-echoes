@@ -1,6 +1,6 @@
 /**
  * @file screens.css
- * @description 游戏样式表 - 主屏幕模块 (v2.1.0 - [样式] 装备选择弹窗)
+ * @description 游戏样式表 - 主屏幕模块 (v2.2.0 - [样式] 修正装备详情弹窗定位)
  */
 
 /* --- 探索屏幕 (Explore Screen) --- */
@@ -390,13 +390,12 @@
 .inventory-filter-tab:hover { background-color: rgba(0,0,0,0.05); }
 .inventory-filter-tab.active { background-color: var(--secondary-color); color: var(--text-on-primary-color); font-weight: bold; }
 .item-details-content { display: grid; grid-template-columns: 80px 1fr; gap: 0 15px; }
-/* [新增] 装备对比弹窗里的空装备占位符 */
 .item-details-content.placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
-    min-height: 250px; /* 确保最小高度 */
+    min-height: 250px; 
     background-color: var(--bg-color);
     border: 2px dashed var(--border-color);
     border-radius: 8px;
@@ -418,7 +417,7 @@ input[type=range].quantity-slider { flex-grow: 1; -webkit-appearance: none; appe
 input[type=range].quantity-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--primary-color); cursor: pointer; border-radius: 50%; border: 2px solid var(--bg-color); }
 input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px; background: var(--primary-color); cursor: pointer; border-radius: 50%; border: 2px solid var(--bg-color); }
 
-/* [新增] 装备选择弹窗样式 */
+/* --- 装备选择弹窗样式 --- */
 .custom-modal-box.large {
     max-width: 800px;
     width: 95%;
@@ -456,6 +455,15 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 }
 .preview-actions button {
     width: 100%;
+}
+
+/* [新增] 请求3：为装备详情弹窗增加自定义定位 */
+.custom-modal-overlay.equip-detail-view {
+    justify-content: flex-end;
+    padding-right: 5%;
+}
+.custom-modal-overlay.equip-detail-view .custom-modal-box {
+    margin-right: 20px; /* 增加一些右边距，使其不完全贴边 */
 }
 
 
@@ -768,7 +776,7 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 }
 
 /* --- 动画效果 --- */
-@keyframes sparkle-fade-in { from { transform: scale(0); opacity: 0; } to { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } }
+@keyframes sparkle-fade-in { from { opacity: 0; transform: scale(0); } to { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } }
 @keyframes sparkle-breathing { 0%, 100% { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } 50% { transform: scale(var(--anim-scale-max, 1.2)); opacity: 1; } }
 @keyframes combat-hit-animation { 0% { transform: translate(0, 0) rotate(0); } 15% { transform: translate(-2px, -2px) rotate(-1deg); } 30% { transform: translate(2px, 0) rotate(1deg); } 45% { transform: translate(-2px, 2px) rotate(-1deg); } 60% { transform: translate(2px, -2px) rotate(1deg); } 75% { transform: translate(-2px, 0) rotate(-1deg); } 100% { transform: translate(0, 0) rotate(0); } }
 @keyframes combat-attack-animation { 0% { transform: translateY(0); } 50% { transform: translateY(20px); } 100% { transform: translateY(0); } }

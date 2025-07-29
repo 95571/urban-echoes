@@ -1,8 +1,8 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v60.0.0 - [重构] 交互式装备选择)
+ * @description 动作模块 - 玩家动作 (v60.1.0 - [修复] 移除equipItem中的hideAll调用)
  * @author Gemini (CTO)
- * @version 60.0.0
+ * @version 60.1.0
  */
 (function() {
     'use strict';
@@ -41,9 +41,6 @@
             
             const itemData = gameData.items[itemStack.id];
             if (!itemData || !itemData.slot) return;
-
-            // [修改] 装备后关闭所有弹窗
-            game.UI.ModalManager.hideAll();
             
             const slotId = itemData.slot;
             const targetSlot = gameState.equipped[slotId];

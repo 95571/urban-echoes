@@ -1,6 +1,6 @@
 /**
  * @file ui_components.css
- * @description 游戏样式表 - 可复用UI组件 (v1.0.0)
+ * @description 游戏样式表 - 可复用UI组件 (v1.1.0 - [样式] 新增透明遮罩层)
  */
 
 /* --- 通用组件 --- */
@@ -70,6 +70,17 @@ h4 { color: var(--secondary-color); margin: 15px 0 10px; border-bottom: 1px dott
     display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background-color: rgba(0,0,0,0.02);
 }
 .custom-modal-content .save-slot-list li { background-color: var(--bg-color); }
+
+/* [新增] 请求2：为装备详情弹窗移除背景遮罩和滤镜 */
+.custom-modal-overlay.equip-detail-view {
+    background-color: transparent;
+    backdrop-filter: none;
+    pointer-events: none; /* 允许点击穿透 */
+}
+.custom-modal-overlay.equip-detail-view .custom-modal-box {
+    pointer-events: auto; /* 但弹窗本身需要能被点击 */
+}
+
 
 /* --- 叙事UI (Narrative UI) --- */
 #narrative-ui {

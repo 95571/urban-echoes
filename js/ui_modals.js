@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 叙事UI与自定义弹窗管理器 (v60.2.0 - [重构] 装备选择弹窗升级为对比视图)
+ * @description UI模块 - 叙事UI与自定义弹窗管理器 (v60.5.1 - [修复] 修正弹窗关闭逻辑)
  * @author Gemini (CTO)
- * @version 60.2.0
+ * @version 60.5.1
  */
 (function() {
     'use strict';
@@ -230,6 +230,11 @@
                 default:                    overlay = this.createCustomModalDOM(modalConfig); break;
             }
             overlay.style.zIndex = zIndex;
+
+            if (modalConfig.type === 'item_details' && modalConfig.payload.isFromEquipSelection) {
+                overlay.classList.add('equip-detail-view');
+            }
+
             return overlay;
         },
 
@@ -278,33 +283,49 @@
         },
 
         createItemDetailsDOM(modalConfig) {
-            const { item, itemData, index, isEquipped, slotId } = modalConfig.payload;
+            const { item, itemData, index, isEquipped, slotId, isFromEquipSelection } = modalConfig.payload;
             const content = _createItemDetailBlock(itemData, item);
-            let actionButtons = [];
-            
+            const actionButtons = [];
+
             if (isEquipped) {
-                 actionButtons.push(createElement('button', { textContent: '卸下', dataset: { action: 'unequipItem', slot: slotId } }));
+                actionButtons.push(createElement('button', { textContent: '卸下', dataset: { action: 'unequipItem', slot: slotId } }));
             } else {
-                if (itemData.type === 'consumable') actionButtons.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: index } }));
-                if (itemData.slot) actionButtons.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: index } }));
-                if (itemData.droppable !== false) {
+                if (itemData.type === 'consumable') {
+                    actionButtons.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: index } }));
+                }
+                if (itemData.slot) {
+                    actionButtons.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: index } }));
+                }
+                if (itemData.droppable !== false && !isFromEquipSelection) {
                     actionButtons.push(createElement('button', { textContent: '丢弃', className: 'danger-button', dataset: { action: 'dropItem', index: index } }));
                 }
             }
-            actionButtons.push(createElement('button', { textContent: '关闭', className: 'secondary-action custom-modal-close-btn' }));
+
+            actionButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const action = e.target.dataset.action;
+                    const param = e.target.dataset.slot || e.target.dataset.index;
+                    if (action && game.Actions[action]) {
+                        game.Actions[action](param);
+                    }
+                    this.hideAll();
+                });
+            });
             
-            actionButtons.forEach(btn => btn.addEventListener('click', (e) => {
-                 if (e.target.dataset.action) {
-                    game.Actions[e.target.dataset.action](e.target.dataset.slot || e.target.dataset.index);
-                 }
-                this.hideAll();
-            }));
-            actionButtons.find(btn => btn.classList.contains('custom-modal-close-btn')).addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.resolveCurrent(null);
+            const closeButton = createElement('button', {
+                textContent: '关闭',
+                className: 'secondary-action',
+                eventListeners: {
+                    click: (e) => {
+                        e.stopPropagation();
+                        this.resolveCurrent(null);
+                    }
+                }
             });
 
-            return this.createModalFrame('物品详情', content, actionButtons);
+            const allButtons = [...actionButtons, closeButton];
+
+            return this.createModalFrame('物品详情', content, allButtons);
         },
         
         createJobBoardDOM(modalConfig) {
@@ -430,7 +451,7 @@
             return this.createModalFrame('选择数量', content, actions);
         },
         
-        // --- [重构] 装备对比弹窗 ---
+        // --- 装备对比弹窗 ---
         createEquipmentSelectionDOM(modalConfig) {
             const { slotId } = modalConfig.payload;
             const gameState = game.State.get();
@@ -441,56 +462,34 @@
             const leftPanel = createElement('div', { className: 'current-equipment-panel' });
             const rightPanel = createElement('div', { className: 'available-equipment-panel' });
 
-            // --- 内部函数：渲染右侧面板内容 ---
-            const renderRightPanel = (viewType, item = null) => {
-                rightPanel.innerHTML = '';
-                if (viewType === 'list') {
-                    rightPanel.appendChild(createElement('h4', { textContent: '从背包选择' }));
-                    const availableItems = gameState.inventory
-                        .map((item, index) => ({...item, originalIndex: index}))
-                        .filter(i => gameData.items[i.id]?.slot === slotId);
+            // --- 渲染右侧面板内容 ---
+            rightPanel.appendChild(createElement('h4', { textContent: '从背包选择' }));
+            const availableItems = gameState.inventory
+                .map((item, index) => ({...item, originalIndex: index}))
+                .filter(i => gameData.items[i.id]?.slot === slotId);
 
-                    const list = createElement('ul', { className: 'menu-list' });
-                    if (availableItems.length === 0) {
-                        list.appendChild(createElement('li', { className: 'empty-list-item' }, [
-                            createElement('p', { className: 'empty-list-text', textContent: `背包中没有可用于此槽位的装备。` })
-                        ]));
-                    } else {
-                        availableItems.forEach(invItem => {
-                            const itemData = gameData.items[invItem.id];
-                            const listItem = createElement('li', { 
-                                className: 'equipment-selection-item',
-                                eventListeners: { click: () => renderRightPanel('detail', invItem) }
-                            }, [
-                                createElement('div', { className: 'inventory-item-entry' }, [
-                                    createElement('div', { className: 'item-icon', style: { backgroundImage: `url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')` } }),
-                                    createElement('span', { className: 'item-name-quantity', textContent: `${itemData.name}` })
-                                ]),
-                            ]);
-                            list.appendChild(listItem);
-                        });
-                    }
-                    rightPanel.appendChild(list);
-                    game.UI.makeListDraggable(list);
-                } else if (viewType === 'detail' && item) {
-                    rightPanel.appendChild(createElement('h4', { textContent: '选中装备' }));
-                    const itemData = gameData.items[item.id];
-                    rightPanel.appendChild(_createItemDetailBlock(itemData, item));
-                    const buttonGroup = createElement('div', {className: 'preview-actions'});
-                    buttonGroup.append(
-                        createElement('button', {
-                            textContent: '返回列表',
-                            className: 'secondary-action',
-                            eventListeners: { click: () => renderRightPanel('list') }
-                        }),
-                        createElement('button', {
-                            textContent: '装备',
-                            eventListeners: { click: () => game.Actions.equipItem(item.originalIndex) }
-                        })
-                    );
-                    rightPanel.appendChild(buttonGroup);
-                }
-            };
+            const list = createElement('ul', { className: 'menu-list' });
+            if (availableItems.length === 0) {
+                list.appendChild(createElement('li', { className: 'empty-list-item' }, [
+                    createElement('p', { className: 'empty-list-text', textContent: `背包中没有可用于此槽位的装备。` })
+                ]));
+            } else {
+                availableItems.forEach(invItem => {
+                    const itemData = gameData.items[invItem.id];
+                    const listItem = createElement('li', { 
+                        className: 'equipment-selection-item',
+                        eventListeners: { click: () => game.UI.showItemDetails(invItem.originalIndex, { isFromEquipSelection: true }) }
+                    }, [
+                        createElement('div', { className: 'inventory-item-entry' }, [
+                            createElement('div', { className: 'item-icon', style: { backgroundImage: `url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')` } }),
+                            createElement('span', { className: 'item-name-quantity', textContent: `${itemData.name}` })
+                        ]),
+                    ]);
+                    list.appendChild(listItem);
+                });
+            }
+            rightPanel.appendChild(list);
+            game.UI.makeListDraggable(list);
             
             // --- 左侧面板：当前装备 (固定内容) ---
             leftPanel.appendChild(createElement('h4', { textContent: '当前装备' }));
@@ -502,9 +501,6 @@
                     createElement('p', { className: 'empty-list-text', textContent: `【${slotName}】槽位为空。` })
                 ]));
             }
-
-            // --- 初始渲染右侧面板 ---
-            renderRightPanel('list');
             
             mainContainer.append(leftPanel, rightPanel);
             
