@@ -62,6 +62,7 @@ window.gameData.constants = {
         SALTED_FISH: 'item_salted_fish',
         RIBS: 'item_ribs',
         WOOD_SWORD: 'equip_wood_sword',
+		IRON_SWORD: 'equip_iron_sword',
         BASEBALL_CAP: 'equip_baseball_cap',
         TSHIRT: 'equip_tshirt',
         JEANS: 'equip_jeans',

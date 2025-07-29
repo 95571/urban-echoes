@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v53.3.0 - [新增] Buff剩余时间显示)
+ * @description UI核心模块 (v60.0.0 - [新增] 装备选择弹窗接口)
  * @author Gemini (CTO)
- * @version 53.3.0
+ * @version 60.0.0
  */
 (function() {
     'use strict';
@@ -58,7 +58,8 @@
                 if (actionTarget) {
                     const action = actionTarget.dataset.action;
                     if (game.Actions[action]) {
-                        const param = actionTarget.dataset.direction || actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id || actionTarget.dataset.filter;
+                        // [修改] 统一参数获取逻辑
+                        const param = actionTarget.dataset.direction || actionTarget.dataset.slotId || actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id || actionTarget.dataset.filter;
                         event.stopPropagation();
                         game.Actions[action](param);
                         return;
@@ -73,8 +74,7 @@
                          const targetMember = target.closest('.relationship-entry');
                          if (targetMember) game.Actions.viewRelationshipDetail(targetMember.dataset.id);
                     } else if (gameState.menu.current === 'STATUS') {
-                        const targetSkill = target.closest('.skill-list-entry');
-                        if (targetSkill) game.Actions.viewSkillDetail(targetSkill.dataset.id);
+                        // Clicks on status screen are now handled by data-actions
                     } else if (gameState.menu.current === 'INVENTORY') {
                         const filterTab = target.closest('.inventory-filter-tab');
                         if (filterTab && filterTab.dataset.filter) {
@@ -231,19 +231,17 @@
 
             const effectsContainer = dom['left-panel-effects'];
             effectsContainer.innerHTML = '';
-            const visibleEffects = activeEffects.filter(effect => !effect.isHidden);
+            const visibleEffects = (activeEffects || []).filter(effect => !effect.isHidden);
             if (visibleEffects.length > 0) {
                  const effectsGrid = document.createElement('div');
                  effectsGrid.className = 'effects-grid';
                  visibleEffects.forEach(effect => {
-                    // [修改] 使用∞符号代表永久效果
                     const durationText = effect.duration === -1 ? '∞' : effect.duration;
                     const effectEl = document.createElement('div');
                     effectEl.className = `effect-entry ${effect.type || 'buff'}`;
                     const tooltip = `${effect.name}\n${effect.description}\n(${effect.duration === -1 ? '永久' : `剩余 ${effect.duration} 时段`})`;
                     effectEl.title = tooltip;
                     
-                    // [修改] 如果效果有持续时间（大于0或永久），则显示角标
                     const showDuration = effect.duration > 0 || effect.duration === -1;
                     const durationDisplay = showDuration ? `<span class="effect-duration">${durationText}</span>` : '';
 
@@ -325,7 +323,8 @@
                 mapArea.style.backgroundImage = `url('${imageUrl}')`;
             }
         },
-
+        
+        // --- Modal Shortcuts ---
         showNarrative(dialogueId) { return this.NarrativeManager.show(dialogueId); },
         showConfirmation(payload) {
              const options = payload.options || [ { text: '取消', value: false, class: 'secondary-action'}, { text: '确认', value: true } ];
@@ -342,10 +341,9 @@
             if (!item) return;
             return this.ModalManager.push({ type: 'item_details', payload: { item, itemData: gameData.items[item.id], index: inventoryIndex }});
         },
-        showEquippedItemDetails(itemId, slotId) {
-            const itemData = gameData.items[itemId];
-            if (!itemData) return;
-            return this.ModalManager.push({ type: 'item_details', payload: { item: { id: itemId, quantity: 1 }, itemData, isEquipped: true, slotId: slotId }});
+        // [新增] 装备选择弹窗的快捷方式
+        showEquipmentSelection(slotId) {
+            return this.ModalManager.push({ type: 'equipment_selection', payload: { slotId } });
         },
         showQuestDetails(jobId) {
             const jobData = gameData.jobs[jobId];

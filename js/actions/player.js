@@ -1,6 +1,8 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v56.0.0 - [重构] 装备效果由ActionBlock驱动)
+ * @description 动作模块 - 玩家动作 (v60.0.0 - [重构] 交互式装备选择)
+ * @author Gemini (CTO)
+ * @version 60.0.0
  */
 (function() {
     'use strict';
@@ -36,8 +38,13 @@
             const gameState = game.State.get();
             const itemStack = gameState.inventory[index];
             if (!itemStack) return;
+            
             const itemData = gameData.items[itemStack.id];
             if (!itemData || !itemData.slot) return;
+
+            // [修改] 装备后关闭所有弹窗
+            game.UI.ModalManager.hideAll();
+            
             const slotId = itemData.slot;
             const targetSlot = gameState.equipped[slotId];
             if (!targetSlot) {
@@ -49,15 +56,19 @@
             }
             targetSlot.itemId = itemStack.id;
 
-            // [新增] 执行装备时的ActionBlock
             if (itemData.onEquipActionBlock) {
                 await this.executeActionBlock(itemData.onEquipActionBlock);
             }
-
-            itemStack.quantity--;
-            if (itemStack.quantity <= 0) {
-                gameState.inventory.splice(index, 1);
+            
+            // 从库存中找到准确的物品实例并减少数量
+            const itemIndexInInventory = gameState.inventory.findIndex(i => i === itemStack);
+            if (itemIndexInInventory > -1) {
+                gameState.inventory[itemIndexInInventory].quantity--;
+                if (gameState.inventory[itemIndexInInventory].quantity <= 0) {
+                    gameState.inventory.splice(itemIndexInInventory, 1);
+                }
             }
+
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('equipItem', { itemName: itemData.name }) });
             game.State.updateAllStats(false);
             game.Events.publish(EVENTS.STATE_CHANGED);
@@ -67,11 +78,13 @@
         async unequipItem(slotId, internal = false) {
             const gameState = game.State.get();
             const targetSlot = gameState.equipped[slotId];
-            if (!targetSlot || !targetSlot.itemId) return;
+            if (!targetSlot || !targetSlot.itemId) {
+                if (!internal) game.UI.ModalManager.hideAll();
+                return;
+            }
             const itemToUnequipId = targetSlot.itemId;
             const itemData = gameData.items[itemToUnequipId];
 
-            // [新增] 执行卸下装备时的ActionBlock
             if (itemData && itemData.onUnequipActionBlock) {
                 await this.executeActionBlock(itemData.onUnequipActionBlock);
             }
@@ -79,6 +92,7 @@
             this.addItemToInventory(itemToUnequipId, 1, true);
             targetSlot.itemId = null;
             if (!internal) {
+                game.UI.ModalManager.hideAll();
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }) });
                 game.State.updateAllStats(false);
                 game.Events.publish(EVENTS.STATE_CHANGED);
@@ -154,6 +168,11 @@
             if (!internal) {
                 game.Events.publish(EVENTS.STATE_CHANGED);
             }
+        },
+
+        // --- [新增] 状态页面相关动作 ---
+        showEquipmentSelection(slotId) {
+            return game.UI.showEquipmentSelection(slotId);
         },
 
         setPlayerName(name) { game.State.get().name = name || '无名者'; game.Events.publish(EVENTS.STATE_CHANGED); },

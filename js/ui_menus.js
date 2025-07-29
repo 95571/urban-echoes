@@ -1,8 +1,8 @@
 /**
  * @file js/ui_menus.js
- * @description UI模块 - 菜单渲染器 (v54.4.1 - [重构] 拖拽滚动功能全局化)
+ * @description UI模块 - 菜单渲染器 (v60.0.0 - [重构] 全新状态页面)
  * @author Gemini (CTO)
- * @version 54.4.1
+ * @version 60.0.0
  */
 (function() {
     'use strict';
@@ -13,104 +13,145 @@
     const menuRenderers = {
         STATUS(container) {
             const gameState = game.State.get();
-            container.innerHTML = ''; 
-
-            if (gameState.menu.skillDetailView) {
-                this.renderSkillDetail(container, gameState.menu.skillDetailView);
-                return;
-            }
+            container.innerHTML = '';
             
-            const targetId = gameState.menu.statusViewTargetId;
-            const isPlayer = !targetId;
-            const unit = isPlayer ? gameState : gameState.party.find(p => p.id === targetId);
+            // --- [新增] 初始化状态页的内部状态 ---
+            if (this.activeTab === undefined) {
+                this.activeTab = 'SKILLS'; 
+            }
+
+            // --- [重构] 两栏式布局 ---
+            const statusContainer = createElement('div', { id: 'status-container-grid' });
+            const leftPanel = createElement('div', { id: 'status-left-panel' });
+            const rightPanel = createElement('div', { id: 'status-right-panel' });
+
+            const unit = gameState; // 当前只支持玩家
+            const effectiveStats = unit.effectiveStats;
+
+            // --- [重构] 左侧面板：角色核心信息 ---
+            leftPanel.append(
+                createElement('div', { className: 'status-main-avatar', innerHTML: game.UI.getAvatarHtml(unit) }),
+                createElement('div', { className: 'status-main-header' }, [
+                    createElement('h3', { textContent: unit.name }),
+                    createElement('p', { textContent: '一个刚踏入社会的毕业生，未来充满无限可能。' })
+                ]),
+                createElement('div', { className: 'status-resource-bars' }, [
+                    this.createResourceBar('HP', unit.hp, unit.maxHp),
+                    this.createResourceBar('MP', unit.mp, unit.maxMp)
+                ]),
+                this.renderAttributesGrid(effectiveStats)
+            );
             
-            if (!unit) {
-                container.appendChild(createElement('p', { textContent: '错误：找不到要查看的角色。' }));
-                container.appendChild(createElement('button', { textContent: '返回', className: 'back-button', dataset: { action: 'backToPartyScreen' } }));
-                return;
+            // --- [重构] 右侧面板：装备与能力详情 ---
+            const tabContainer = createElement('div', { id: 'status-tabs-container' });
+            const tabContent = createElement('div', { id: 'status-tab-content' });
+
+            const createTabButton = (tabName, label) => {
+                return createElement('button', {
+                    className: `status-tab-button ${this.activeTab === tabName ? 'active' : ''}`,
+                    textContent: label,
+                    eventListeners: { click: () => {
+                        this.activeTab = tabName;
+                        this.STATUS(container); // 重新渲染整个状态页以更新Tab
+                    }}
+                });
+            };
+
+            tabContainer.append(
+                createTabButton('SKILLS', '技能'),
+                createTabButton('PERKS', '专长'),
+                createTabButton('EFFECTS', '效果')
+            );
+            
+            // --- [新增] 根据激活的Tab渲染内容 ---
+            switch (this.activeTab) {
+                case 'SKILLS':
+                    tabContent.appendChild(this.renderSkillList(unit));
+                    break;
+                case 'PERKS':
+                    tabContent.appendChild(this.renderPerksList(unit));
+                    break;
+                case 'EFFECTS':
+                    tabContent.appendChild(this.renderActiveEffectsList(unit));
+                    break;
             }
 
-            if (!isPlayer) {
-                 container.appendChild(createElement('button', { textContent: '返回人际关系', className: 'back-button', dataset: { action: 'backToPartyScreen' } }));
-            }
-
-            const avatar = createElement('div', { className: 'status-avatar-area', innerHTML: game.UI.getAvatarHtml(unit) });
-            const header = createElement('div', { className: 'status-header' }, [
-                createElement('h3', { textContent: unit.name }),
-                createElement('p', { textContent: isPlayer ? '一个刚踏入社会的毕业生，未来充满无限可能。' : (unit.description || "暂无更多信息。"), style: { padding: '0 10px', lineHeight: '1.6' } })
+            rightPanel.append(
+                this.renderEquipmentGrid(unit.equipped),
+                tabContainer,
+                tabContent
+            );
+            
+            statusContainer.append(leftPanel, rightPanel);
+            container.appendChild(statusContainer);
+        },
+        
+        createResourceBar(type, current, max) {
+            const icon = type === 'HP' ? gameData.icons.health : gameData.icons.energy;
+            const barClass = type === 'HP' ? 'hp-bar' : 'mp-bar';
+            return createElement('div', { className: `resource-bar ${barClass}`, attributes: { title: `${type}: ${Math.ceil(current)} / ${max}` } }, [
+                createElement('div', { className: 'resource-bar-fill', style: { width: (max > 0 ? (current / max) * 100 : 0) + '%' } }),
+                createElement('div', { className: 'resource-bar-text', innerHTML: `<span>${icon}</span> ${Math.ceil(current)} / ${max}` })
             ]);
-
-            container.appendChild(avatar);
-            container.appendChild(header);
-
-            if (isPlayer) {
-                const effectiveStats = unit.effectiveStats;
-                const playerSectionsContainer = createElement('div', {});
-                const coreStatsSection = createElement('div', { className: 'status-section' }, [ createElement('h4', { textContent: '核心属性' }) ]);
-                const coreStatsList = createElement('ul', { className: 'stat-list core-stats' });
-                Object.entries({ str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运' }).forEach(([key, name]) => {
-                    coreStatsList.appendChild(createElement('li', {}, [
-                        createElement('span', { innerHTML: `${gameData.icons[key]} ${name}` }),
-                        createElement('span', { textContent: effectiveStats[key] })
-                    ]));
-                });
-                coreStatsSection.appendChild(coreStatsList);
-                playerSectionsContainer.appendChild(coreStatsSection);
-                const derivedStatsSection = createElement('div', { className: 'status-section' }, [ createElement('h4', { textContent: '派生属性' }) ]);
-                const derivedStatsList = createElement('ul', { className: 'stat-list' });
-                [
-                    { name: `${gameData.icons.health} 健康上限`, value: effectiveStats.maxHp },
-                    { name: `${gameData.icons.energy} 精力上限`, value: effectiveStats.maxMp },
-                    { name: `${gameData.icons.attack} 攻击`, value: effectiveStats.attack },
-                    { name: `${gameData.icons.defense} 防御`, value: effectiveStats.defense },
-                    { name: `${gameData.icons.spd} 行动力`, value: effectiveStats.spd }
-                ].forEach(stat => {
-                    derivedStatsList.appendChild(createElement('li', {}, [
-                        createElement('span', { innerHTML: stat.name }),
-                        createElement('span', { textContent: stat.value })
-                    ]));
-                });
-                derivedStatsSection.appendChild(derivedStatsList);
-                playerSectionsContainer.appendChild(derivedStatsSection);
-                playerSectionsContainer.appendChild(this.renderPerksList(unit));
-                playerSectionsContainer.appendChild(this.renderSkillList(unit));
-                container.appendChild(playerSectionsContainer);
-            }
         },
 
-        renderPerksList(unit){
-            const section = createElement('div', { className: 'status-section' });
-            section.appendChild(createElement('h4', { textContent: '已掌握专长' }));
-            const list = createElement('ul', { className: 'stat-list perks-list' });
-            let hasPerks = false;
-            if (unit.skillState) {
-                for (const skillId in unit.skillState) {
-                    const skillState = unit.skillState[skillId];
-                    if (skillState.unlockedPerks && skillState.unlockedPerks.length > 0) hasPerks = true;
-                    skillState.unlockedPerks.forEach(perkId => {
-                        const perkData = gameData.perkLibrary[perkId];
-                        if (!perkData) return;
-                        list.appendChild(createElement('li', { attributes: { title: perkData.description } }, [
-                            createElement('span', { className: 'perk-icon', textContent: '✨' }),
-                            createElement('span', { textContent: perkData.name })
-                        ]));
-                    });
-                }
+        renderAttributesGrid(stats) {
+            const grid = createElement('div', { className: 'status-attributes-grid' });
+            const coreStatsList = createElement('ul', { className: 'stat-list' });
+            const derivedStatsList = createElement('ul', { className: 'stat-list' });
+            
+            coreStatsList.appendChild(createElement('li', { className: 'stat-list-header', textContent: '核心属性' }));
+            Object.entries({ str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运' }).forEach(([key, name]) => {
+                coreStatsList.appendChild(createElement('li', {}, [
+                    createElement('span', { innerHTML: `${gameData.icons[key]} ${name}` }),
+                    createElement('span', { textContent: stats[key] })
+                ]));
+            });
+
+            derivedStatsList.appendChild(createElement('li', { className: 'stat-list-header', textContent: '派生属性' }));
+            [
+                { name: `${gameData.icons.attack} 攻击`, value: stats.attack },
+                { name: `${gameData.icons.defense} 防御`, value: stats.defense },
+                { name: `${gameData.icons.spd} 行动力`, value: stats.spd }
+            ].forEach(stat => {
+                derivedStatsList.appendChild(createElement('li', {}, [
+                    createElement('span', { innerHTML: stat.name }),
+                    createElement('span', { textContent: stat.value })
+                ]));
+            });
+            
+            grid.append(coreStatsList, derivedStatsList);
+            return grid;
+        },
+
+        renderEquipmentGrid(equipped) {
+            const container = createElement('div', { className: 'status-equipment-display' });
+            container.appendChild(createElement('h4', { textContent: '装备' }));
+            const grid = createElement('div', { className: 'equipped-grid' });
+            for (const slotId in equipped) {
+                const slot = equipped[slotId];
+                const itemData = slot.itemId ? gameData.items[slot.itemId] : null;
+                const card = createElement('div', {
+                    className: 'equipped-slot-card',
+                    // [修改] 点击装备槽将调用新的动作
+                    dataset: { action: 'showEquipmentSelection', slotId: slotId },
+                }, [
+                    createElement('div', { className: 'slot-icon', style: { backgroundImage: `url('${itemData ? itemData.imageUrl : ''}')` } }),
+                    createElement('div', { className: 'slot-item-name', textContent: itemData ? itemData.name : '无' }),
+                    createElement('div', { className: 'slot-type-name', textContent: slot.name })
+                ]);
+                grid.appendChild(card);
             }
-            if (!hasPerks) {
-                list.appendChild(createElement('li', { textContent: '尚未掌握任何专长。' }));
-            }
-            section.appendChild(list);
-            return section;
+            container.appendChild(grid);
+            return container;
         },
 
         renderSkillList(unit) {
-            const section = createElement('div', { className: 'status-section' });
-            section.appendChild(createElement('h4', { textContent: '技能熟练度' }));
+            const section = createElement('div', { className: 'skill-list-container' });
             const grid = createElement('div', { className: 'skill-grid-container' });
             const skillState = unit.skillState;
             if (!skillState || Object.keys(skillState).length === 0) {
-                grid.appendChild(createElement('p', { textContent: '尚未学习任何技能。' }));
+                grid.appendChild(createElement('p', { className: 'empty-list-text', textContent: '尚未学习任何技能。' }));
                 section.appendChild(grid);
                 return section;
             }
@@ -122,7 +163,7 @@
                 const progressPercent = requiredProf > 0 && requiredProf !== Infinity ? Math.min(100, (state.proficiency / requiredProf) * 100) : (state.level >= 100 ? 100 : 0);
                 const skillEntry = createElement('div', {
                     className: 'skill-list-entry',
-                    dataset: { id: skillId },
+                    dataset: { id: skillId }, // Future use: click to see perk tree
                 }, [
                     createElement('div', { className: 'skill-list-header' }, [
                         createElement('strong', { textContent: data.name }),
@@ -135,65 +176,68 @@
                 grid.appendChild(skillEntry);
             }
             section.appendChild(grid);
+            game.UI.makeListDraggable(section);
             return section;
         },
-
-        renderSkillDetail(container, skillId) {
-            const gameState = game.State.get();
-            const skillData = gameData.skillLibrary[skillId];
-            const skillState = gameState.skillState[skillId];
-            container.appendChild(createElement('button', { textContent: '返回状态页', className: 'back-button', dataset: { action: 'viewSkillDetail', id: '' } }));
-            if (!skillData || !skillState) {
-                container.appendChild(createElement('p', { textContent: '无法找到技能详情。' }));
-                return;
-            }
-            container.appendChild(createElement('div', { style: { textAlign: 'center', margin: '1rem 0' } }, [
-                createElement('h3', { textContent: `${skillData.name} - 专长树` }),
-                createElement('p', { textContent: skillData.description })
-            ]));
-            const perkTreeContainer = createElement('div', { className: 'perk-tree-container' });
-            const perksByTier = {};
-            if (skillData.perkTree) {
-                for (const level in skillData.perkTree) {
-                    skillData.perkTree[level].forEach(perkId => {
-                        if (!perksByTier[level]) perksByTier[level] = [];
-                        perksByTier[level].push(perkId);
+        
+        renderPerksList(unit){
+            const section = createElement('div', { className: 'perks-list-container' });
+            const list = createElement('ul', { className: 'stat-list perks-list' });
+            let hasPerks = false;
+            if (unit.skillState) {
+                for (const skillId in unit.skillState) {
+                    const skillState = unit.skillState[skillId];
+                    if (skillState.unlockedPerks && skillState.unlockedPerks.length > 0) hasPerks = true;
+                    skillState.unlockedPerks.forEach(perkId => {
+                        const perkData = gameData.perkLibrary[perkId];
+                        if (!perkData) return;
+                        list.appendChild(createElement('li', { attributes: { title: perkData.description } }, [
+                            createElement('span', { className: 'perk-icon', textContent: perkData.icon || '✨' }),
+                            createElement('span', { textContent: perkData.name })
+                        ]));
                     });
                 }
             }
-            Object.keys(perksByTier).sort((a,b) => a-b).forEach(level => {
-                const tierDiv = createElement('div', { className: 'perk-tier' });
-                tierDiv.appendChild(createElement('h4', { className: 'perk-tier-header', textContent: `等级 ${level} 自动解锁` }));
-                const nodesList = createElement('div', { className: 'perk-nodes-list' });
-                perksByTier[level].forEach(perkId => {
-                    const perkData = gameData.perkLibrary[perkId];
-                    const isLearned = skillState.unlockedPerks.includes(perkId);
-                    const node = createElement('div', { className: 'perk-node' }, [
-                        createElement('div', { className: 'perk-node-icon', textContent: '✨' }),
-                        createElement('div', { className: 'perk-node-info' }, [
-                            createElement('strong', { textContent: perkData.name }),
-                            createElement('small', { textContent: perkData.description })
-                        ]),
-                        isLearned ? createElement('span', { 
-                            textContent: '✓ 已掌握', 
-                            style: { color: 'var(--success-color)', gridColumn: '1 / -1', fontWeight: 'bold', fontSize: '0.9em', marginTop: '5px' }
-                        }) : null
-                    ].filter(Boolean));
-                    nodesList.appendChild(node);
-                });
-                tierDiv.appendChild(nodesList);
-                perkTreeContainer.appendChild(tierDiv);
-            });
-            container.appendChild(perkTreeContainer);
+            if (!hasPerks) {
+                list.appendChild(createElement('p', { className: 'empty-list-text', textContent: '尚未掌握任何专长。' }));
+            }
+            section.appendChild(list);
+            game.UI.makeListDraggable(section);
+            return section;
         },
 
+        renderActiveEffectsList(unit) {
+            const section = createElement('div', { className: 'effects-list-container' });
+            const list = createElement('ul', { className: 'stat-list effects-list' });
+            const visibleEffects = (unit.activeEffects || []).filter(effect => !effect.isHidden);
+
+            if(visibleEffects.length === 0) {
+                list.appendChild(createElement('p', { className: 'empty-list-text', textContent: '当前没有生效中的状态效果。' }));
+            } else {
+                visibleEffects.forEach(effect => {
+                    const durationText = effect.duration === -1 ? ' (永久)' : ` (剩余 ${effect.duration} 时段)`;
+                    list.appendChild(createElement('li', { attributes: { title: effect.description } }, [
+                        createElement('span', { innerHTML: `${effect.icon} ${effect.name}` }),
+                        createElement('span', { textContent: durationText })
+                    ]));
+                });
+            }
+            section.appendChild(list);
+            game.UI.makeListDraggable(section);
+            return section;
+        },
+
+        // --- [修改] INVENTORY 渲染器，移除装备显示 ---
         INVENTORY(container) {
             const gameState = game.State.get();
             container.innerHTML = '';
-            container.appendChild(this.renderEquippedItems(gameState.equipped));
+            // [移除] 不再在此处渲染装备
+            // container.appendChild(this.renderEquippedItems(gameState.equipped)); 
+            
             container.appendChild(createElement('h4', { textContent: '背包' }));
             const currentFilter = gameState.menu.inventoryFilter || '全部';
             container.appendChild(this.renderInventoryFilters(currentFilter));
+            
             const filteredInventory = gameState.inventory
                 .map((item, index) => ({...item, originalIndex: index}))
                 .filter(item => {
@@ -208,28 +252,6 @@
                     }
                 });
             container.appendChild(this.renderInventoryList(filteredInventory));
-        },
-
-        renderEquippedItems(equipped) {
-            const fragment = document.createDocumentFragment();
-            fragment.appendChild(createElement('h4', { textContent: '装备中' }));
-            const grid = createElement('div', { id: 'equipped-grid', className: 'equipped-grid' });
-            for (const slotId in equipped) {
-                const slot = equipped[slotId];
-                const itemData = slot.itemId ? gameData.items[slot.itemId] : null;
-                const card = createElement('div', {
-                    className: 'equipped-slot-card',
-                    dataset: itemData ? { action: 'showEquippedItemDetails', slotId: slotId, itemId: slot.itemId } : {},
-                    eventListeners: itemData ? { click: () => game.UI.showEquippedItemDetails(slot.itemId, slotId) } : {}
-                }, [
-                    createElement('div', { className: 'slot-icon', style: { backgroundImage: `url('${itemData ? itemData.imageUrl : ''}')` } }),
-                    createElement('div', { className: 'slot-item-name', textContent: itemData ? itemData.name : '无' }),
-                    createElement('div', { className: 'slot-type-name', textContent: slot.name })
-                ]);
-                grid.appendChild(card);
-            }
-            fragment.appendChild(grid);
-            return fragment;
         },
 
         renderInventoryFilters(currentFilter) {
@@ -258,7 +280,10 @@
                 const actions = [];
                 if (itemData.type === 'consumable') actions.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: item.originalIndex } }));
                 if (itemData.slot) actions.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: item.originalIndex } }));
-                actions.push(createElement('button', { textContent: '丢弃', className: 'danger-button', dataset: { action: 'dropItem', index: item.originalIndex } }));
+                if (itemData.droppable !== false) {
+                   actions.push(createElement('button', { textContent: '丢弃', className: 'danger-button', dataset: { action: 'dropItem', index: item.originalIndex } }));
+                }
+
                 const listItem = createElement('li', {}, [
                     createElement('div', { className: 'inventory-item-entry', dataset: { index: item.originalIndex } }, [
                         createElement('div', { className: 'item-icon', style: { backgroundImage: `url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')` } }),
@@ -268,10 +293,10 @@
                 ]);
                 list.appendChild(listItem);
             });
+            game.UI.makeListDraggable(list);
             return list;
         },
 
-        // --- [新增] 任务日志渲染器 ---
         QUESTS(container) {
             container.innerHTML = '';
             const gameState = game.State.get();
@@ -311,7 +336,6 @@
                     });
                 }
                 
-                // [修改] 调用全局的 makeListDraggable
                 game.UI.makeListDraggable(listEl);
 
                 return createElement('div', { className: 'quest-section' }, [

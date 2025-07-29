@@ -40,7 +40,7 @@ window.gameData.dialogues = {
     // --- 新手礼包 ---
     "DIALOGUE_NEWBIE_PACK_OPEN": {
         dialogueText: [{ avatar: 'images/item_newbie_pack.png', text: '这是一个新手大礼包，打开它吧！' }],
-        options: [ { text: '打开', actionBlock: [ { action: { type: 'log', payload: { text: '你打开了新手大礼包，获得了一整套新手装备！', color: 'var(--log-color-success)' } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.WOOD_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.BASEBALL_CAP, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.TSHIRT, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.JEANS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.RUNNERS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.CLOVER, quantity: 1 } } } ] } ]
+        options: [ { text: '打开', actionBlock: [ { action: { type: 'log', payload: { text: '你打开了新手大礼包，获得了一整套新手装备！', color: 'var(--log-color-success)' } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.WOOD_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.IRON_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.BASEBALL_CAP, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.TSHIRT, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.JEANS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.RUNNERS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.CLOVER, quantity: 1 } } } ] } ]
     },
 
     // --- 电梯 ---

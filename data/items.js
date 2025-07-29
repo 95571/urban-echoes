@@ -79,6 +79,24 @@ window.gameData.items = {
             { action: { type: 'remove_effect', payload: { effectId: 'eff_swiftness' } } }
         ]
     },
+	"equip_iron_sword": {
+        name: "铁剑", type: "equipment", slot: "mainHand",
+        description: "一把平平无奇的铁剑！",
+        droppable: true,
+        imageUrl: 'images/equip_iron_sword.png',
+        useDescription: "装备后能提升你的攻击能力和行动力。",
+        effect: { attack: 5 }, 
+        onEquipActionBlock: [
+            { action: { type: 'add_effect', payload: { effectId: 'eff_precision_mastery' } } },
+			{ action: { type: 'add_effect', payload: { effectId: 'eff_sharpness' } } },
+            { action: { type: 'add_effect', payload: { effectId: 'eff_swiftness' } } }
+        ],
+        onUnequipActionBlock: [
+            { action: { type: 'remove_effect', payload: { effectId: 'eff_precision_mastery' } } },
+			{ action: { type: 'remove_effect', payload: { effectId: 'eff_sharpness' } } },
+            { action: { type: 'remove_effect', payload: { effectId: 'eff_swiftness' } } }
+        ]
+    },
     "equip_baseball_cap": {
         name: "棒球帽", type: "equipment", slot: "head",
         description: "一顶普通的棒球帽，能带来些许好运。",
