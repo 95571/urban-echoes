@@ -1,8 +1,8 @@
 /**
  * @file js/combat.js
- * @description 战斗系统模块 (v59.2.0 - [修复] 规范化日志颜色)
+ * @description 战斗系统模块 (v59.2.1 - [优化] 统一战斗日志颜色)
  * @author Gemini (CTO)
- * @version 59.2.0
+ * @version 59.2.1
  */
 (function() {
     'use strict';
@@ -17,7 +17,6 @@
                 return;
             }
 
-            // [修复] 使用CSS变量
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('encounter'), color: 'var(--log-color-danger)' });
             gameState.isCombat = true;
 
@@ -171,19 +170,15 @@
             if (unit.hasTakenExtraTurnThisRound) {
                 return { triggered: false };
             }
-
             const cs = game.State.get().combatState;
             if (!cs) return { triggered: false };
             const opponents = (unit.type === 'player' ? cs.enemies : cs.playerParty).filter(u => u.hp > 0);
             if (opponents.length === 0) return { triggered: false };
-
             const selfSpd = unit.effectiveStats.spd || 10;
             const avgOpponentSpd = opponents.reduce((sum, o) => sum + (o.effectiveStats.spd || 10), 0) / opponents.length;
-            
             const speedAdvantage = selfSpd - avgOpponentSpd;
             const chance = 0.05 + speedAdvantage * 0.02;
             const cappedChance = Math.min(Math.max(0, chance), 0.5);
-
             if (Math.random() < cappedChance) {
                 unit.hasTakenExtraTurnThisRound = true;
                 return { triggered: true };
@@ -220,7 +215,8 @@
         playerDefend() { this.playerAction(player => {
             player.isDefending = true;
             game.Events.publish(EVENTS.COMBAT_DEFEND, { source: player });
-            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('defendAction', {name: player.name}) });
+            // [修改] 优化日志颜色
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('defendAction', {name: player.name}), color: 'var(--log-color-primary)' });
         })},
 
         playerFlee() { this.playerAction(player => {
@@ -234,7 +230,8 @@
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeSuccess'), color: 'var(--log-color-success)' });
                 this.end('fled');
             } else {
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeFail'), color: 'var(--error-color)' });
+                // [修改] 优化日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fleeFail'), color: 'var(--log-color-danger)' });
             }
         })},
 
@@ -285,7 +282,6 @@
                  game.Events.publish(EVENTS.STATE_CHANGED);
             }
             
-            // [修复] 使用CSS变量
             const logColor = attacker.type === 'enemy' ? 'var(--log-color-danger)' : 'var(--log-color-success)';
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('attackDamage', { attackerName: attacker.name, defenderName: defender.name, damage: Math.round(damage) }), color: logColor });
             
@@ -294,7 +290,8 @@
             await game.Events.publish(EVENTS.COMBAT_ATTACK_END, eventContext);
 
             if (defender.hp === 0) {
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unitDefeated', { unitName: defender.name }), color: 'var(--text-muted-color)' });
+                // [修改] 优化日志颜色
+                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unitDefeated', { unitName: defender.name }), color: 'var(--log-color-primary)' });
                 if(game.State.get().combatState.focusedTargetId === defender.combatId) game.State.get().combatState.focusedTargetId = null;
             }
         },
@@ -314,7 +311,6 @@
             let message = outcome === 'win' ? (combatState.victoryPrompt || game.Utils.formatMessage('combatWinPrompt')) :
                           outcome === 'loss' ? (combatState.defeatPrompt || game.Utils.formatMessage('combatLossPrompt')) : '';
             
-            // [修复] 使用CSS变量
             const logMessage = outcome === 'win' ? game.Utils.formatMessage('combatWin') : outcome === 'loss' ? game.Utils.formatMessage('combatLoss') : '';
             if (logMessage) game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: logMessage, color: outcome === 'win' ? 'var(--log-color-success)' : 'var(--log-color-danger)' });
 
