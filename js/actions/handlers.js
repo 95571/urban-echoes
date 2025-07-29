@@ -1,6 +1,8 @@
 /**
  * @file js/actions/handlers.js
- * @description 动作模块 - ActionBlock执行器 (v59.1.1 - [修复] 修复fullHeal动作)
+ * @description 动作模块 - ActionBlock执行器 (v62.5.0 - [修复] 修正destroy_scene_element中丢失的上下文参数)
+ * @author Gemini (CTO)
+ * @version 62.5.0
  */
 (function() {
     'use strict';
@@ -14,7 +16,6 @@
             const state = game.State.get();
             const maxHp = state.maxHp;
             const maxMp = state.maxMp;
-            // [修复] 调用applyEffect时，必须传入目标单位 (state)
             game.State.applyEffect(state, { hp: maxHp, mp: maxMp });
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('fullHeal'), color: 'var(--log-color-success)' });
         }
@@ -57,15 +58,14 @@
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `错误：未知的动作块动作ID "${id}"`, color: 'var(--error-color)' });
             }
         },
-        destroy_scene_element() {
+        
+        // [修改] 修正函数签名，使其能接收并传递上下文参数
+        destroy_scene_element(payload, targetUnit, triggerContext) {
             if (game.currentHotspotContext) {
                 const { locationId, hotspotIndex, hotspotType } = game.currentHotspotContext;
                 const keyPrefix = hotspotType === 'discovery' ? 'discovery' : 'hotspot';
                 const varId = VARS[`${keyPrefix}Destroyed`](locationId, hotspotIndex);
-                this.modify_variable({ varId: varId, operation: 'set', value: 1 });
-                if (game.State.get().gameState === 'EXPLORE') {
-                    game.Events.publish(EVENTS.UI_RENDER);
-                }
+                this.modify_variable({ varId: varId, operation: 'set', value: 1 }, targetUnit, triggerContext);
             } else {
                 console.warn("destroy_scene_element called without a valid hotspot context.");
             }
@@ -157,6 +157,7 @@
             }
             game.Events.publish(EVENTS.STATE_CHANGED);
         },
+        
         modify_variable({ varId, operation, value, log, logColor }, targetUnit, triggerContext) {
             const state = game.State.get();
             if (!state.variables) state.variables = {};
@@ -173,9 +174,6 @@
 
             if (log) {
                 this.log({ text: log, color: logColor }, targetUnit, triggerContext);
-            }
-            if (state.gameState === 'EXPLORE') {
-                game.Events.publish(EVENTS.UI_RENDER);
             }
         },
         async acceptJob({ jobId }) {

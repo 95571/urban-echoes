@@ -1,6 +1,6 @@
 /**
  * @file screens.css
- * @description 游戏样式表 - 主屏幕模块 (v2.2.0 - [样式] 修正装备详情弹窗定位)
+ * @description 游戏样式表 - 主屏幕模块 (v2.3.0 - [修复] 移除破坏排版的placeholder样式)
  */
 
 /* --- 探索屏幕 (Explore Screen) --- */
@@ -390,16 +390,6 @@
 .inventory-filter-tab:hover { background-color: rgba(0,0,0,0.05); }
 .inventory-filter-tab.active { background-color: var(--secondary-color); color: var(--text-on-primary-color); font-weight: bold; }
 .item-details-content { display: grid; grid-template-columns: 80px 1fr; gap: 0 15px; }
-.item-details-content.placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    min-height: 250px; 
-    background-color: var(--bg-color);
-    border: 2px dashed var(--border-color);
-    border-radius: 8px;
-}
 .item-details-image { width: 80px; height: 80px; background-color: var(--bg-color); border: 2px solid var(--border-color); border-radius: 8px; overflow: hidden; background-size: cover; background-position: center; }
 .item-details-info { display: flex; flex-direction: column; gap: 8px; }
 .item-details-info h4 { margin: 0; padding: 0; border: none; font-size: 1.1em; color: var(--primary-color); }

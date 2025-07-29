@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 叙事UI与自定义弹窗管理器 (v60.5.1 - [修复] 修正弹窗关闭逻辑)
+ * @description UI模块 - 叙事UI与自定义弹窗管理器 (v62.3.0 - [修复] 修正任务详情弹窗的关闭逻辑)
  * @author Gemini (CTO)
- * @version 60.5.1
+ * @version 62.3.0
  */
 (function() {
     'use strict';
@@ -10,18 +10,25 @@
     const gameData = window.gameData;
     const createElement = window.game.UI.createElement;
 
-    // --- 内部辅助函数，用于创建物品详情DOM块 ---
     function _createItemDetailBlock(itemData, item) {
+        const displayData = itemData || {
+            name: '无装备',
+            description: '该槽位当前没有装备任何物品。',
+            useDescription: '没有可用的效果。',
+            imageUrl: ''
+        };
+        const displayItem = item || { quantity: 0 };
+
         const content = createElement('div', { className: 'item-details-content' }, [
-            createElement('div', { className: 'item-details-image', style: { backgroundImage: `url('${itemData.imageUrl || game.DEFAULT_AVATAR_FALLBACK_IMAGE}')` } }),
+            createElement('div', { className: 'item-details-image', style: { backgroundImage: `url('${displayData.imageUrl}')` } }),
             createElement('div', { className: 'item-details-info' }, [
-                createElement('h4', { textContent: `${itemData.name}${item.quantity > 1 ? ` &times;${item.quantity}`: ''}` }),
-                createElement('p', { textContent: itemData.description })
+                createElement('h4', { textContent: `${displayData.name}${displayItem.quantity > 1 ? ` &times;${displayItem.quantity}`: ''}` }),
+                createElement('p', { textContent: displayData.description })
             ]),
             createElement('div', { className: 'item-details-effects' }, [
                 createElement('h4', { textContent: '效果' }),
                 createElement('div', { className: 'item-details-effects-list' }, [
-                    createElement('p', { innerHTML: itemData.useDescription || '该物品没有特殊效果。' })
+                    createElement('p', { innerHTML: displayData.useDescription })
                 ])
             ])
         ]);
@@ -30,7 +37,6 @@
     }
 
 
-    // --- 叙事UI管理器 (NarrativeManager) ---
     const NarrativeManager = {
         init() {
             const dom = game.dom;
@@ -187,7 +193,6 @@
         }
     };
     
-    // --- 自定义弹窗管理器 (ModalManager) ---
     const ModalManager = {
         stack: [],
         baseZIndex: 1200,
@@ -216,6 +221,22 @@
             if (currentModal.resolve) currentModal.resolve(value);
             this.pop();
         },
+        
+        refreshTopModal() {
+            if (this.stack.length === 0) return;
+
+            const modalConfig = this.stack[this.stack.length - 1];
+            const oldElement = modalConfig.domElement;
+            
+            if (!oldElement || !oldElement.parentNode) return;
+
+            const newElement = this.createModalElement(modalConfig, this.stack.length - 1);
+            newElement.classList.add('visible');
+            
+            modalConfig.domElement = newElement;
+            oldElement.parentNode.replaceChild(newElement, oldElement);
+        },
+
         createModalElement(modalConfig, stackIndex) {
             const zIndex = this.baseZIndex + stackIndex * 10;
             let overlay;
@@ -288,43 +309,53 @@
             const actionButtons = [];
 
             if (isEquipped) {
-                actionButtons.push(createElement('button', { textContent: '卸下', dataset: { action: 'unequipItem', slot: slotId } }));
+                actionButtons.push(createElement('button', { 
+                    textContent: '卸下', 
+                    eventListeners: { click: async () => {
+                        await game.Actions.unequipItem(slotId);
+                        this.hideAll();
+                    }}
+                }));
             } else {
                 if (itemData.type === 'consumable') {
-                    actionButtons.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: index } }));
+                    actionButtons.push(createElement('button', {
+                        textContent: '使用',
+                        eventListeners: { click: async () => {
+                            await game.Actions.useItem(index);
+                        }}
+                    }));
                 }
                 if (itemData.slot) {
-                    actionButtons.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: index } }));
+                    actionButtons.push(createElement('button', {
+                        textContent: '装备',
+                        eventListeners: { click: async () => {
+                            await game.Actions.equipItem(index);
+                            if (isFromEquipSelection) {
+                                this.pop();
+                                this.refreshTopModal();
+                            } else {
+                                this.hideAll();
+                            }
+                        }}
+                    }));
                 }
                 if (itemData.droppable !== false && !isFromEquipSelection) {
-                    actionButtons.push(createElement('button', { textContent: '丢弃', className: 'danger-button', dataset: { action: 'dropItem', index: index } }));
+                    actionButtons.push(createElement('button', {
+                        textContent: '丢弃',
+                        className: 'danger-button',
+                        eventListeners: { click: async () => {
+                            await game.Actions.dropItem(index);
+                        }}
+                    }));
                 }
             }
 
-            actionButtons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const action = e.target.dataset.action;
-                    const param = e.target.dataset.slot || e.target.dataset.index;
-                    if (action && game.Actions[action]) {
-                        game.Actions[action](param);
-                    }
-                    this.hideAll();
-                });
-            });
-            
             const closeButton = createElement('button', {
                 textContent: '关闭',
                 className: 'secondary-action',
-                eventListeners: {
-                    click: (e) => {
-                        e.stopPropagation();
-                        this.resolveCurrent(null);
-                    }
-                }
+                eventListeners: { click: (e) => { e.stopPropagation(); this.resolveCurrent(null); }}
             });
-
             const allButtons = [...actionButtons, closeButton];
-
             return this.createModalFrame('物品详情', content, allButtons);
         },
         
@@ -384,9 +415,14 @@
                     createElement('p', {}, [createElement('strong', { textContent: jobData.reward })])
                 ]);
 
+                // [修改] 修正接受任务按钮的点击回调
                 const acceptButtonConfig = {
                     textContent: '接受任务',
-                    eventListeners: { click: async () => { await game.Actions.acceptJob(jobId); this.hideAll(); } }
+                    eventListeners: { click: async () => { 
+                        await game.Actions.acceptJob(jobId);
+                        this.pop(); // 关闭当前(详情)弹窗
+                        this.refreshTopModal(); // 刷新下层(任务列表)弹窗
+                    }}
                 };
 
                 if (!requirementsMet) {
@@ -451,7 +487,6 @@
             return this.createModalFrame('选择数量', content, actions);
         },
         
-        // --- 装备对比弹窗 ---
         createEquipmentSelectionDOM(modalConfig) {
             const { slotId } = modalConfig.payload;
             const gameState = game.State.get();
@@ -462,7 +497,6 @@
             const leftPanel = createElement('div', { className: 'current-equipment-panel' });
             const rightPanel = createElement('div', { className: 'available-equipment-panel' });
 
-            // --- 渲染右侧面板内容 ---
             rightPanel.appendChild(createElement('h4', { textContent: '从背包选择' }));
             const availableItems = gameState.inventory
                 .map((item, index) => ({...item, originalIndex: index}))
@@ -491,26 +525,22 @@
             rightPanel.appendChild(list);
             game.UI.makeListDraggable(list);
             
-            // --- 左侧面板：当前装备 (固定内容) ---
             leftPanel.appendChild(createElement('h4', { textContent: '当前装备' }));
-            if (currentlyEquippedId) {
-                const itemData = gameData.items[currentlyEquippedId];
-                leftPanel.appendChild(_createItemDetailBlock(itemData, { id: currentlyEquippedId, quantity: 1 }));
-            } else {
-                leftPanel.appendChild(createElement('div', {className: 'item-details-content placeholder'}, [
-                    createElement('p', { className: 'empty-list-text', textContent: `【${slotName}】槽位为空。` })
-                ]));
-            }
+            const itemData = currentlyEquippedId ? gameData.items[currentlyEquippedId] : null;
+            const item = currentlyEquippedId ? { id: currentlyEquippedId, quantity: 1 } : null;
+            leftPanel.appendChild(_createItemDetailBlock(itemData, item));
             
             mainContainer.append(leftPanel, rightPanel);
             
-            // --- 底部操作栏 ---
             const actions = [];
             if (currentlyEquippedId) {
                  actions.push(createElement('button', { 
                     textContent: '卸下', 
                     className: 'danger-button', 
-                    eventListeners: { click: () => game.Actions.unequipItem(slotId) }
+                    eventListeners: { click: async () => { 
+                        await game.Actions.unequipItem(slotId);
+                        this.refreshTopModal();
+                    }}
                 }));
             }
             actions.push(createElement('button', { 

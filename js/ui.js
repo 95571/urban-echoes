@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v60.1.0 - [优化] 扩展showItemDetails接口)
+ * @description UI核心模块 (v62.0.0 - [修复] 修复战斗中左侧面板状态不同步的问题)
  * @author Gemini (CTO)
- * @version 60.1.0
+ * @version 62.0.0
  */
 (function() {
     'use strict';
@@ -33,7 +33,18 @@
             game.Events.subscribe(EVENTS.UI_RENDER_BOTTOM_NAV, () => this.renderBottomNav());
             game.Events.subscribe(EVENTS.UI_LOG_MESSAGE, (data) => this.log(data.message, data.color));
             game.Events.subscribe(EVENTS.UI_SHOW_TOAST, (data) => this.showToast(data));
-            game.Events.subscribe(EVENTS.STATE_CHANGED, () => this.renderLeftPanel());
+            
+            game.Events.subscribe(EVENTS.STATE_CHANGED, () => {
+                this.renderLeftPanel();
+                const gameState = game.State.get();
+                if (gameState.gameState === 'MENU') {
+                    const renderer = this.screenRenderers.MENU;
+                    if (renderer) {
+                        renderer.call(this);
+                    }
+                }
+            });
+
             game.Events.subscribe(EVENTS.TIME_ADVANCED, () => this.renderLeftPanel());
             game.Events.subscribe(EVENTS.GAME_LOADED, () => this.render());
             game.Events.subscribe(EVENTS.GAME_SAVED, () => {
@@ -58,7 +69,6 @@
                 if (actionTarget) {
                     const action = actionTarget.dataset.action;
                     if (game.Actions[action]) {
-                        // [修改] 统一参数获取逻辑
                         const param = actionTarget.dataset.direction || actionTarget.dataset.slotId || actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id || actionTarget.dataset.filter;
                         event.stopPropagation();
                         game.Actions[action](param);
@@ -73,8 +83,6 @@
                     if (gameState.menu.current === 'PARTY') {
                          const targetMember = target.closest('.relationship-entry');
                          if (targetMember) game.Actions.viewRelationshipDetail(targetMember.dataset.id);
-                    } else if (gameState.menu.current === 'STATUS') {
-                        // Clicks on status screen are now handled by data-actions
                     } else if (gameState.menu.current === 'INVENTORY') {
                         const filterTab = target.closest('.inventory-filter-tab');
                         if (filterTab && filterTab.dataset.filter) {
@@ -162,7 +170,11 @@
         renderLeftPanel() {
             const dom = game.dom;
             const gameState = game.State.get();
-            const effectiveStats = gameState.effectiveStats || gameState.stats;
+            
+            // [新增] 智能判断当前应该渲染哪个单位的数据
+            const isCombat = gameState.isCombat && gameState.combatState && gameState.combatState.playerParty[0];
+            const unit = isCombat ? gameState.combatState.playerParty[0] : gameState;
+            const effectiveStats = isCombat ? unit.effectiveStats : gameState.effectiveStats;
 
             if (!this.isLeftPanelInitialized) {
                 dom['left-panel'].innerHTML = `
@@ -199,7 +211,9 @@
                 this.isLeftPanelInitialized = true;
             }
 
-            const { name, hp, maxHp, mp, maxMp, time, gold, activeEffects } = gameState;
+            // [修改] 部分数据源自gameState，部分数据源自动态的unit
+            const { name, gold, time } = gameState;
+            const { hp, maxHp, mp, maxMp, activeEffects } = unit;
             
             dom['left-panel-avatar'].innerHTML = this.getAvatarHtml(gameState);
             dom['left-panel-player-name'].textContent = name;
@@ -324,7 +338,6 @@
             }
         },
         
-        // --- Modal Shortcuts ---
         showNarrative(dialogueId) { return this.NarrativeManager.show(dialogueId); },
         showConfirmation(payload) {
              const options = payload.options || [ { text: '取消', value: false, class: 'secondary-action'}, { text: '确认', value: true } ];
@@ -337,7 +350,6 @@
         showJobBoard(payload) { return this.ModalManager.push({ type: 'job_board', payload }); },
         showJobDetails(jobId) { return this.ModalManager.push({ type: 'job_details', payload: { jobId } }); },
         
-        // [修改] showItemDetails现在接受一个可选的payloadOverrides对象
         showItemDetails(inventoryIndex, payloadOverrides = {}) {
             const item = game.State.get().inventory[inventoryIndex];
             if (!item) return;
@@ -353,7 +365,6 @@
             return this.ModalManager.push({ type: 'item_details', payload: finalPayload });
         },
 
-        // [新增] 装备选择弹窗的快捷方式
         showEquipmentSelection(slotId) {
             return this.ModalManager.push({ type: 'equipment_selection', payload: { slotId } });
         },

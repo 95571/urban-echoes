@@ -1,8 +1,8 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v60.1.0 - [修复] 移除equipItem中的hideAll调用)
+ * @description 动作模块 - 玩家动作 (v62.3.0 - [修复] 接受任务后发布状态变更事件)
  * @author Gemini (CTO)
- * @version 60.1.0
+ * @version 62.3.0
  */
 (function() {
     'use strict';
@@ -13,6 +13,7 @@
 
     Object.assign(game.Actions, {
         async useItem(index) {
+            game.UI.ModalManager.hideAll();
             const gameState = game.State.get();
             const itemStack = gameState.inventory[index];
             if (!itemStack) return;
@@ -57,7 +58,6 @@
                 await this.executeActionBlock(itemData.onEquipActionBlock);
             }
             
-            // 从库存中找到准确的物品实例并减少数量
             const itemIndexInInventory = gameState.inventory.findIndex(i => i === itemStack);
             if (itemIndexInInventory > -1) {
                 gameState.inventory[itemIndexInInventory].quantity--;
@@ -69,14 +69,12 @@
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('equipItem', { itemName: itemData.name }) });
             game.State.updateAllStats(false);
             game.Events.publish(EVENTS.STATE_CHANGED);
-            game.Events.publish(EVENTS.UI_RENDER);
         },
 
         async unequipItem(slotId, internal = false) {
             const gameState = game.State.get();
             const targetSlot = gameState.equipped[slotId];
             if (!targetSlot || !targetSlot.itemId) {
-                if (!internal) game.UI.ModalManager.hideAll();
                 return;
             }
             const itemToUnequipId = targetSlot.itemId;
@@ -88,13 +86,10 @@
 
             this.addItemToInventory(itemToUnequipId, 1, true);
             targetSlot.itemId = null;
-            if (!internal) {
-                game.UI.ModalManager.hideAll();
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }) });
-                game.State.updateAllStats(false);
-                game.Events.publish(EVENTS.STATE_CHANGED);
-                game.Events.publish(EVENTS.UI_RENDER);
-            }
+
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('unequipItem', { itemName: gameData.items[itemToUnequipId].name }) });
+            game.State.updateAllStats(false);
+            game.Events.publish(EVENTS.STATE_CHANGED);
         },
         
         removeItemByIndex(index, quantity) {
@@ -113,6 +108,7 @@
         },
 
         async dropItem(index) { 
+            game.UI.ModalManager.hideAll();
             const gameState = game.State.get();
             const item = gameState.inventory[index];
             if (!item) return;
@@ -167,7 +163,6 @@
             }
         },
 
-        // --- [新增] 状态页面相关动作 ---
         showEquipmentSelection(slotId) {
             return game.UI.showEquipmentSelection(slotId);
         },
@@ -211,6 +206,8 @@
                 objectives: JSON.parse(JSON.stringify(jobData.objectives || []))
             };
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), color: 'var(--log-color-primary)' });
+            // [新增] 发布状态变更事件，以便UI（如任务公告板）可以刷新
+            game.Events.publish(EVENTS.STATE_CHANGED);
         },
         playerCombatAttack() { game.Combat.playerAttack(); },
         playerCombatDefend() { game.Combat.playerDefend(); },
