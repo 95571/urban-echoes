@@ -1,8 +1,8 @@
 /**
  * @file js/ui_screens.js
- * @description UI模块 - 主屏幕渲染器 (v55.0.0 - [重构] 主屏幕渲染完全迁移至createElement)
+ * @description UI模块 - 主屏幕渲染器 (v67.0.0 - [重构] 适配统一世界地图)
  * @author Gemini (CTO)
- * @version 55.0.0
+ * @version 67.0.0
  */
 (function() {
     'use strict';
@@ -12,6 +12,7 @@
 
     const screenRenderers = {
         TITLE() {
+            // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             dom.screen.className = 'title-screen';
             dom.screen.innerHTML = ''; // 清空
@@ -31,6 +32,7 @@
         },
 
         SEQUENCE() {
+            // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             dom.screen.innerHTML = ''; // 清空
             dom.screen.className = 'sequence-screen';
@@ -79,6 +81,7 @@
         },
 
         EXPLORE() {
+            // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             const gameState = game.State.get();
             dom.screen.innerHTML = ''; // 清空
@@ -95,7 +98,6 @@
                 createElement('p', { textContent: location.description })
             ]);
 
-            // 创建可交互闪光点
             const sparkles = (location.discoveries || []).map((spot, index) => {
                 const isActivated = game.ConditionChecker.evaluate(spot.activationConditions);
                 const isDestroyed = (gameState.variables[`discovery_destroyed_${gameState.currentLocationId}_${index}`] || 0) === 1;
@@ -124,7 +126,6 @@
                 }, [createElement('div', { className: 'sparkle-core' })]);
             }).filter(Boolean);
 
-            // 创建场景交互卡片
             const availableHotspots = (location.hotspots || [])
                 .map((spot, index) => ({ spot, index }))
                 .filter(({ spot, index }) => {
@@ -156,7 +157,6 @@
                 ]);
             });
 
-            // 组装主场景区域
             const mapArea = createElement('div', {
                 className: 'map-area',
                 style: { backgroundImage: location.imageUrl ? `url('${location.imageUrl}')` : 'none' }
@@ -176,7 +176,6 @@
             dom.screen.appendChild(header);
             dom.screen.appendChild(mapArea);
             
-            // 启动闪光点动画
             dom.screen.querySelectorAll('.sparkle-hotspot').forEach(sparkle => {
                 const core = sparkle.querySelector('.sparkle-core');
                 const fadeInMs = parseFloat(sparkle.dataset.fadeInDuration) * 1000;
@@ -190,13 +189,17 @@
 
         MAP() {
             const dom = game.dom;
-            dom.screen.innerHTML = ''; // 清空
+            dom.screen.innerHTML = '';
             dom.screen.className = 'map-screen';
             dom.screen.style.backgroundImage = '';
             
             const gameState = game.State.get();
-            const mapData = gameData.maps[gameState.currentMapId];
-            if (!mapData) return;
+            // [修改] 直接获取我们唯一的地图数据
+            const mapData = gameData.maps.world; 
+            if (!mapData) {
+                console.error("世界地图 'world' 未在 data/locations.js 中定义！");
+                return;
+            }
 
             dom.screen.appendChild(createElement('div', { className: 'location-header' }, [
                 createElement('h2', { textContent: mapData.name })
@@ -204,7 +207,7 @@
 
             const mapContainer = createElement('div', { style: { position: 'relative', width: '100%', height: '100%' } });
 
-            // 绘制连接线
+            // ... (绘制连接线和节点的代码无变化)
             mapData.connections.forEach(conn => {
                 const node1 = mapData.nodes[conn[0]];
                 const node2 = mapData.nodes[conn[1]];
@@ -221,7 +224,6 @@
                 }));
             });
 
-            // 绘制节点
             for (const nodeId in mapData.nodes) {
                 const nodeData = mapData.nodes[nodeId];
                 let nodeClasses = 'map-node';
@@ -242,6 +244,7 @@
         },
 
         MENU() {
+            // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             const gameState = game.State.get();
             const screen = gameState.menu.current;
@@ -269,11 +272,11 @@
         },
 
         COMBAT() {
+            // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             const gameState = game.State.get();
             if (!gameState.combatState) return;
 
-            // 初始化战斗UI
             if (!game.UI.isCombatScreenInitialized) {
                 dom.screen.innerHTML = ''; // 清空
                 dom.screen.className = 'combat-screen';
@@ -307,7 +310,6 @@
                 game.UI.isCombatScreenInitialized = true;
             }
 
-            // 更新战斗UI状态
             const { enemies, activeUnit, focusedTargetId, isWaitingForPlayerInput } = gameState.combatState;
             enemies.forEach(unit => {
                 const card = dom.enemyCards[unit.combatId];

@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v62.0.0 - [修复] 修复战斗中左侧面板状态不同步的问题)
+ * @description UI核心模块 (v64.0.0 - [重构] 适配拆分后的菜单渲染器)
  * @author Gemini (CTO)
- * @version 62.0.0
+ * @version 64.0.0
  */
 (function() {
     'use strict';
@@ -24,8 +24,9 @@
             this.NarrativeManager.init();
             this.registerEventHandlers();
             this.registerDOMListeners();
-
-            return ids.every(id => dom[id] !== undefined );
+            
+            // [新增] 检查菜单渲染器挂载点是否就绪
+            return ids.every(id => dom[id] !== undefined) && this.menuRenderers;
         },
 
         registerEventHandlers() {
@@ -38,9 +39,10 @@
                 this.renderLeftPanel();
                 const gameState = game.State.get();
                 if (gameState.gameState === 'MENU') {
-                    const renderer = this.screenRenderers.MENU;
+                    const renderer = this.menuRenderers[gameState.menu.current];
                     if (renderer) {
-                        renderer.call(this);
+                        // [修改] 修正调用上下文，确保菜单渲染器内部的this指向正确
+                        renderer(document.getElementById('menu-content'));
                     }
                 }
             });
@@ -171,7 +173,6 @@
             const dom = game.dom;
             const gameState = game.State.get();
             
-            // [新增] 智能判断当前应该渲染哪个单位的数据
             const isCombat = gameState.isCombat && gameState.combatState && gameState.combatState.playerParty[0];
             const unit = isCombat ? gameState.combatState.playerParty[0] : gameState;
             const effectiveStats = isCombat ? unit.effectiveStats : gameState.effectiveStats;
@@ -211,7 +212,6 @@
                 this.isLeftPanelInitialized = true;
             }
 
-            // [修改] 部分数据源自gameState，部分数据源自动态的unit
             const { name, gold, time } = gameState;
             const { hp, maxHp, mp, maxMp, activeEffects } = unit;
             

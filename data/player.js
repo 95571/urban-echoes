@@ -1,13 +1,14 @@
 /**
  * @file data/player.js
- * @description 游戏内容 - 初始玩家状态 (v50.0.0 - [重构] 移除flag系统)
+ * @description 游戏内容 - 初始玩家状态 (v67.0.0 - [重构] 移除currentMapId以支持统一世界地图)
+ * @version 67.0.0
  */
 window.gameData.initialPlayerState = {
     id: "player", name: "无名者", gold: 0,
     hp: 100, maxHp: 100, mp: 100,  maxMp: 100,
     stats: { str: 5, dex: 5, int: 5, con: 5, lck: 5 },
     derivedStats: {},
-    activeEffects: [], // [新增] 用于存储当前所有生效的状态效果实例
+    activeEffects: [],
     inventory: [
         { id: "item_phone", quantity: 1 },
         { id: "item_newbie_pack", quantity: 1 }
@@ -22,10 +23,8 @@ window.gameData.initialPlayerState = {
     },
     skillState: { "skill_eloquence": { level: 1, proficiency: 0, unlockedPerks: [] } },
     quests: {},
-    // [移除] flags 对象
-    // flags: { cheat_unlocked: false },
     variables: {
-        cheat_unlocked: 0 // [新增] 将 cheat_unlocked 从 flag 移至 variable (0=false, 1=true)
+        cheat_unlocked: 0
     },
     menu: { current: null, skillDetailView: null, statusViewTargetId: null, inventoryFilter: '全部' },
     party: [
@@ -35,7 +34,7 @@ window.gameData.initialPlayerState = {
     time: { year: 2025, month: 7, day: 7, phase: 0, },
     currentLocationId: "location_living_room",
     currentMapNodeId: "map_node_home",
-    currentMapId: "hangcheng",
+    // [移除] currentMapId
     hotspotPageIndex: 0,
     gameState: "TITLE",
     previousGameState: "TITLE",

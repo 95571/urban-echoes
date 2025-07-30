@@ -1,9 +1,10 @@
 /**
  * @file data/dialogues.js
- * @description 游戏内容 - 扁平化对话节点 (v55.2.1 - [新增] 电脑对话)
+ * @description 游戏内容 - 扁平化对话节点 (v67.0.0 - [重构] 适配统一世界地图)
+ * @version 67.0.0
  */
 window.gameData.dialogues = {
-    // --- [新增] 电脑交互 ---
+    // ... (其他对话代码无变化，为节省篇幅已折叠)
     "DIALOGUE_COMPUTER_CHOICE": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '电脑屏幕上显示着一个“公司福利”活动页面。' }],
         options: [
@@ -18,8 +19,6 @@ window.gameData.dialogues = {
             { text: '关闭页面' }
         ]
     },
-
-    // --- 妈妈的对话 ---
     "DIALOGUE_MOM_GREETING": {
         dialogueText: [ { avatar: 'images/mother_normal.png', name: '妈妈', text: '回来了啊，孩子。今天过得怎么样？' }, { avatar: 'images/mother_normal.png', name: '妈妈', text: '工作不着急找，先玩一段时间。' } ],
         options: [ { text: '“还行，投了几份简历。”', actionBlock: [{ action: { type: 'log', payload: { text: '妈妈欣慰地点点头：“不着急，慢慢来，总能找到合适的。”' } } }] }, { text: '“别提了，有点不顺利...”', transitionTo: "DIALOGUE_MOM_COMFORT" }, { text: '“妈，我想回趟老家。”', conditions: [{ type: 'variable', varId: VARS.Q_VISIT_GRANDMA, comparison: '!=', value: 1 }], transitionTo: "DIALOGUE_MOM_GIVE_FISH_QUEST" }, { text: '“妈，我饿了。”', transitionTo: "DIALOGUE_MOM_IM_HUNGRY" } ]
@@ -36,31 +35,31 @@ window.gameData.dialogues = {
         dialogueText: [ { avatar: 'images/mother_smile.png', name: '妈妈', text: '厨房里有饭菜，自己去热热吃吧。' } ],
         options: [ { text: '“好的，谢谢妈。”' } ]
     },
-
-    // --- 新手礼包 ---
     "DIALOGUE_NEWBIE_PACK_OPEN": {
         dialogueText: [{ avatar: 'images/item_newbie_pack.png', text: '这是一个新手大礼包，打开它吧！' }],
         options: [ { text: '打开', actionBlock: [ { action: { type: 'log', payload: { text: '你打开了新手大礼包，获得了一整套新手装备！', color: 'var(--log-color-success)' } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.WOOD_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.IRON_SWORD, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.BASEBALL_CAP, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.TSHIRT, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.JEANS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.RUNNERS, quantity: 1 } } }, { action: { type: 'add_item', payload: { itemId: ITEMS.CLOVER, quantity: 1 } } } ] } ]
     },
-
-    // --- 电梯 ---
     "DIALOGUE_ELEVATOR_CHOICE": {
         dialogueText: [{ avatar: 'images/elevator.png', text: '电梯来了，你要去几楼？' }],
         options: [ { text: '6楼 (晓雨家)', actionBlock: [ { action: { type: 'log', payload: { text: '你按下了6楼的按钮，电梯缓缓上升...' } } } ] }, { text: '9楼 (阿明家)', actionBlock: [ { action: { type: 'log', payload: { text: '你按下了9楼的按钮，电梯缓缓上升...' } } } ] }, { text: '离开电梯' } ]
     },
 
-    // --- 地图节点对话 ---
-    "DIALOGUE_NODE_DOWNTOWN": {
-        dialogueText: [{ avatar: 'images/player_dialogue.png', text: '要去市中心广场看看吗？' }],
-        options: [ { text: '进入广场 (消耗1时间段)', actionBlock: [ { action: { type: 'advanceTime', payload: { phases: 1 } } }, { action: { type: 'enter_location', payload: { locationId: 'location_downtown' } } } ]}, { text: `[作弊] ${gameData.icons.cheat} 属性+1`, conditions: [{ type: 'variable', varId: VARS.CHEAT_UNLOCKED, comparison: '==', value: 1 }], actionBlock: [ { action: { type: 'effect', payload: { stats: { str: 1, dex: 1, int: 1, con: 1, lck: 1 } } } }, { action: { type: 'log', payload: { text: '一道光芒闪过，你感觉自己变强了！', color: 'var(--skill-color)' } } } ]}, { text: '还是算了' } ]
-    },
+    // [修改] 地图节点对话，移除不再需要的对话
     "DIALOGUE_NODE_BUS_STATION": {
-        dialogueText: [{ avatar: 'images/player_dialogue.png', name: '售票员', text: '你要去哪里？' }],
-        options: [ { text: `回老家 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [ { action: { type: 'log', payload: { text: '你坐上了长途汽车...' } } }, { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, { action: { type: 'map_transition', payload: { targetMapId: "hometown", targetStartNode: "map_node_hometown_station" } } }, { action: { type: 'log', payload: { text: '经过一路奔波，你抵达了新的地方。', color: 'var(--log-color-primary)' } } } ]}, { text: '我再想想' } ]
-    },
-    "DIALOGUE_NODE_HOMETOWN_STATION": {
-        dialogueText: [{ avatar: 'images/player_dialogue.png', text: '准备回杭城吗？' }],
-        options: [ { text: `返回杭城 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, actionBlock: [ { action: { type: 'log', payload: { text: '你坐上了返回杭城的汽车...' } } }, { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, { action: { type: 'map_transition', payload: { targetMapId: "hangcheng", targetStartNode: "map_node_bus_station" } } }, { action: { type: 'log', payload: { text: '经过一路奔波，你回到了杭城。', color: 'var(--log-color-primary)' } } } ]}, { text: '在老家再待会儿' } ]
+        dialogueText: [{ avatar: 'images/bus.png', name: '旅行提示', text: '你要去哪里？' }],
+        options: [ 
+            { 
+                text: `前往老家 (消耗${gameData.settings.travelTime.bus_long_distance}时间段)`, 
+                actionBlock: [ 
+                    { action: { type: 'log', payload: { text: '你坐上了长途汽车...' } } }, 
+                    { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, 
+                    { action: { type: 'modify_variable', payload: { varId: 'currentMapNodeId', operation: 'set', value: 'map_node_hometown_station' } } },
+                    { action: { type: 'log', payload: { text: '经过一路奔波，你抵达了老家。', color: 'var(--log-color-primary)' } } },
+                    { action: { type: 'showMap' } }
+                ]
+            }, 
+            { text: '我再想想' } 
+        ]
     },
     "DIALOGUE_NODE_MARKET": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '老家的菜市场，充满了烟火气。' }],
@@ -71,7 +70,7 @@ window.gameData.dialogues = {
         options: [{text: "好吧"}]
     },
 
-    // --- 场景交互对话 ---
+    // 场景交互对话
     "DIALOGUE_TV_NEWS": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '电视正在播放新闻：“……近日，我市警方成功打掉一个在市中心活动的诈骗团伙，提醒广大市民注意防范……”' }],
         options: [ { text: "继续观看", transitionTo: "DIALOGUE_TV_NEWS_CONTINUE" }, { text: "关掉电视" } ]

@@ -1,6 +1,8 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v52.1.0 - [优化] 调整日志颜色)
+ * @description 动作模块 - 场景与对话交互 (v67.1.0 - [修复] 适配统一世界地图的节点点击)
+ * @author Gemini (CTO)
+ * @version 67.1.0
  */
 (function() {
     'use strict';
@@ -31,7 +33,6 @@
             if (sequenceId === 'character_creation') {
                 game.State.updateAllStats(true);
                 game.State.setUIMode('EXPLORE');
-                // [修改] 使用新的高亮日志颜色
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameWelcome', { playerName: gameState.name }), color: 'var(--log-color-primary)' });
             } else {
                 game.State.setUIMode('EXPLORE');
@@ -133,7 +134,8 @@
 
         async handleMapNodeClick(mapNodeId) {
             const gameState = game.State.get();
-            const currentMapData = gameData.maps[gameState.currentMapId];
+            // [修复] 直接获取唯一的 'world' 地图数据，不再使用 gameState.currentMapId
+            const currentMapData = gameData.maps.world; 
             const nodeData = currentMapData.nodes[mapNodeId];
             if (!nodeData || !nodeData.interaction) return;
             if (!game.ConditionChecker.evaluate(nodeData.conditions)) { return; }

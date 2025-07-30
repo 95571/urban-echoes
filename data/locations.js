@@ -1,35 +1,44 @@
 /**
  * @file data/locations.js
- * @description 游戏内容 - 地图与地点 (v55.2.1 - [修改] 电脑交互升级)
+ * @description 游戏内容 - 统一世界地图与地点数据 (v67.0.0)
+ * @author Gemini (CTO)
+ * @version 67.0.0
  */
-window.gameData.maps = {
-    "hangcheng": {
-        name: "杭城地图",
-        nodes: {
-            "map_node_home":      { name: "家",      icon: gameData.icons.home, x: 25, y: 20, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_community' } } } ] } },
-            "map_node_downtown":  { name: "市中心",  icon: gameData.icons.work, x: 50, y: 45, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_DOWNTOWN" } } },
-            "map_node_bus_station": { name: "汽车客运站", icon: gameData.icons.bus, x: 75, y: 80, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_BUS_STATION" } } }
-        },
-        connections: [ ["map_node_home", "map_node_downtown"], ["map_node_downtown", "map_node_bus_station"] ]
+
+// [重构] 初始化唯一的地图和地点挂载点
+window.gameData.maps = {};
+window.gameData.locations = {};
+
+// --- [世界地图] 定义我们游戏中唯一的地图 ---
+window.gameData.maps.world = {
+    name: "世界地图",
+    nodes: {
+        // 杭城区域
+        "map_node_home":      { name: "家",      icon: gameData.icons.home, x: 20, y: 25, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_community' } } } ] } },
+        "map_node_downtown":  { name: "市中心",  icon: gameData.icons.work, x: 40, y: 40, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_downtown' } } } ] } },
+        "map_node_bus_station": { name: "汽车客运站", icon: gameData.icons.bus, x: 60, y: 55, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_BUS_STATION" } } },
+        // 老家区域
+        "map_node_hometown_station": { name: "老家客运站", icon: gameData.icons.bus, x: 80, y: 70, interaction: { type: 'action_block', payload: [{ action: { type: 'log', payload: {text: '你走出了老家的客运站。'}}}]}},
+        "map_node_old_home": { name: "老家", icon: gameData.icons.home, x: 85, y: 50, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_old_home' } } } ] } },
+        "map_node_grandma_home": { name: "姥姥家", icon: '👵', x: 90, y: 40, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_grandma_home' } } } ] } },
+        "map_node_market": { name: "菜市场", icon: gameData.icons.market, x: 78, y: 35, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_MARKET" } } },
     },
-    "hometown": {
-        name: "老家地图",
-        nodes: {
-            "map_node_hometown_station": { name: "客运站", icon: gameData.icons.bus, x: 30, y: 70, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_HOMETOWN_STATION" } } },
-            "map_node_old_home": { name: "老家", icon: gameData.icons.home, x: 60, y: 30, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_old_home' } } } ] } },
-			"map_node_grandma_home": { name: "姥姥家", icon: '👵', x: 75, y: 50, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_grandma_home' } } } ] } },
-            "map_node_market": { name: "菜市场", icon: gameData.icons.market, x: 45, y: 50, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_MARKET" } } },
-        },
-        connections: [
-            ["map_node_hometown_station", "map_node_old_home"],
-            ["map_node_old_home", "map_node_grandma_home"],
-            ["map_node_old_home", "map_node_market"]
-        ]
-    }
+    // [修改] 更新连接关系以反映统一地图
+    connections: [ 
+        ["map_node_home", "map_node_downtown"], 
+        ["map_node_downtown", "map_node_bus_station"],
+        ["map_node_bus_station", "map_node_hometown_station"], // 关键连接
+        ["map_node_hometown_station", "map_node_old_home"],
+        ["map_node_old_home", "map_node_grandma_home"],
+        ["map_node_old_home", "map_node_market"]
+    ]
 };
 
-window.gameData.locations = {
+
+// --- [地点] 将所有地点数据整合到此文件 ---
+Object.assign(window.gameData.locations, {
     "start_creation": { name: "命运的十字路口", description: "回忆如潮水般涌来...", imageUrl: null, hotspots: [] },
+    // 杭城地点
     "location_living_room": {
         name: "客厅",
         description: "一个温馨的小客厅，妈妈正坐在沙发上看电视。",
@@ -56,7 +65,6 @@ window.gameData.locations = {
         hotspots: [
             { label: "返回客厅", icon: "🚪", interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_living_room' } } } ] } },
             { label: "床", icon: "🛏️", interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_BED_OPTIONS" } } },
-            // [修改] 电脑交互改为启动对话
             { 
                 label: "电脑", 
                 icon: "💻", 
@@ -100,6 +108,7 @@ window.gameData.locations = {
             { label: "公告栏", icon: "📋", interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_JOB_BOARD" } } }
         ]
     },
+    // 老家地点
     "location_old_home": { name: "老家的房子", description: "充满回忆的旧屋。", imageUrl: "images/location_old_home.png", hotspots: [ { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } } ] },
 	"location_grandma_home": { name: "姥姥家的房子", description: "姥姥就住在老家隔壁。", imageUrl: "images/location_grandma_home.png", hotspots: [
             { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } },
@@ -114,4 +123,4 @@ window.gameData.locations = {
             { label: "肉摊", icon: "🍖", interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_BUTCHER_GREETING" } } }
         ]
     }
-};
+});
