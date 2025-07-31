@@ -1,6 +1,6 @@
 /**
  * @file data/items.js
- * @description 游戏内容 - 物品与装备 (v57.0.0 - [优化] 区分装备基础属性与Buff)
+ * @description 游戏内容 - 物品与装备 (v58.0.0 - [口袋空间] 为手机添加入口)
  */
 window.gameData.items = {
     "item_phone": { 
@@ -8,7 +8,12 @@ window.gameData.items = {
         description: "现代人的必需品，记录着你的点点滴滴。", 
         droppable: false,
         imageUrl: 'images/item_phone.png',
-        useDescription: "提供各种便利功能，是都市生活的必需品。<br>似乎可以用来打电话。"
+        useDescription: "提供各种便利功能，是都市生活的必需品。<br>似乎可以用来打电话。",
+        // [新增] 使用手机会打开作弊菜单
+        onUseActionBlock: [
+            { action: { type: 'modify_variable', payload: { varId: VARS.CHEAT_UNLOCKED, operation: 'set', value: 1 } } },
+            { action: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_CHEAT_MENU" } } }
+        ]
     },
     "item_newbie_pack": {
         name: "新手大礼包", type: "consumable",
@@ -65,9 +70,7 @@ window.gameData.items = {
         droppable: true,
         imageUrl: 'images/equip_wood_sword.png',
         useDescription: "装备后能提升你的攻击能力和行动力。",
-        // [新增] effect 属性代表装备的【基础属性】，不可移除
         effect: { attack: 2 }, 
-        // onEquipActionBlock 代表装备的【附加/附魔属性】，可通过移除Buff来改变
         onEquipActionBlock: [
             { action: { type: 'add_effect', payload: { effectId: 'eff_precision_mastery' } } },
 			{ action: { type: 'add_effect', payload: { effectId: 'eff_sharpness' } } },

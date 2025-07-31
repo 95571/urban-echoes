@@ -1,8 +1,8 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v67.1.0 - [修复] 适配统一世界地图的节点点击)
+ * @description 动作模块 - 场景与对话交互 (v72.0.0 - [地图重构] 恢复节点点击交互)
  * @author Gemini (CTO)
- * @version 67.1.0
+ * @version 72.0.0
  */
 (function() {
     'use strict';
@@ -48,7 +48,7 @@
             const answerData = questionData.answers[answerIndex];
 
             if (answerData.actionBlock) {
-                await this.executeActionBlock(answerData.actionBlock);
+                await game.Actions.executeActionBlock(answerData.actionBlock);
             }
 
             let nextQuestionId;
@@ -117,7 +117,7 @@
                     if (payload) game.Combat.start(payload);
                 },
                 async action_block(payload) {
-                    if (payload) await this.executeActionBlock(payload);
+                    if (payload) await game.Actions.executeActionBlock(payload);
                 }
             };
 
@@ -132,17 +132,29 @@
             game.currentHotspotContext = null;
         },
 
-        async handleMapNodeClick(mapNodeId) {
+        // [核心修改] 重构节点点击逻辑
+        async handleMapNodeClick(mapNodeElement) {
             const gameState = game.State.get();
-            // [修复] 直接获取唯一的 'world' 地图数据，不再使用 gameState.currentMapId
-            const currentMapData = gameData.maps.world; 
-            const nodeData = currentMapData.nodes[mapNodeId];
-            if (!nodeData || !nodeData.interaction) return;
-            if (!game.ConditionChecker.evaluate(nodeData.conditions)) { return; }
+            const mapData = gameData.maps.world;
+            const nodeId = mapNodeElement.dataset.id;
+            const nodeData = mapData.nodes[nodeId];
 
-            gameState.currentMapNodeId = mapNodeId;
+            if (!nodeData || !game.ConditionChecker.evaluate(nodeData.conditions)) {
+                return;
+            }
+            
+            // 未来在这里加入“旅行”动画和“路线事件”
+            
+            // 立即更新玩家当前节点位置
+            gameState.currentMapNodeId = nodeId;
 
-            await this.handleInteraction(nodeData, -1, 'map_node');
+            // 触发节点的交互
+            if (nodeData.interaction) {
+                await this.handleInteraction(nodeData, -1, 'map_node');
+            }
+            
+            // 重新渲染UI以反映位置变化
+            game.Events.publish(EVENTS.UI_RENDER);
         },
     });
 })();

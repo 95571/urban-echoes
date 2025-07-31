@@ -1,8 +1,8 @@
 /**
  * @file js/ui_modals.js
- * @description UI模块 - 自定义弹窗管理器 (v63.0.0 - [重构] 移除NarrativeManager)
+ * @description UI模块 - 自定义弹窗管理器 (v64.0.0 - [BUG修复] 修正物品详情的使用按钮逻辑)
  * @author Gemini (CTO)
- * @version 63.0.0
+ * @version 64.0.0
  */
 (function() {
     'use strict';
@@ -160,7 +160,8 @@
                     }}
                 }));
             } else {
-                if (itemData.type === 'consumable') {
+                // [核心修复] 统一使用 onUseActionBlock 判断是否可使用
+                if (itemData.onUseActionBlock) {
                     actionButtons.push(createElement('button', {
                         textContent: '使用',
                         eventListeners: { click: async () => {

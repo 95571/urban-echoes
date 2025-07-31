@@ -1,6 +1,6 @@
 /**
  * @file style.css
- * @description 游戏样式表 - 核心与布局 (v54.3.0 - [新增] Buff时长角标样式)
+ * @description 游戏样式表 - 核心与布局 (v54.3.1 - [地图升级] 修复地图点击闪烁问题)
  */
 /* --- 全局与基础设定 --- */
 :root {
@@ -35,7 +35,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background-color: #2f2a24; font-family: var(--font-family); color: var(--text-color); overscroll-behavior: none; }
 
-button, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-entry, .skill-list-entry, .inventory-item-entry, .equipped-slot-card {
+/* [修复] 将 #map-container 加入，防止点击时整个地图闪烁 */
+button, #map-container, .hotspot-card, .sparkle-hotspot, .map-node, .nav-button, .relationship-entry, .skill-list-entry, .inventory-item-entry, .equipped-slot-card {
     -webkit-tap-highlight-color: transparent;
     outline: none;
 }

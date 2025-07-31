@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v64.0.0 - [重构] 适配拆分后的菜单渲染器)
+ * @description UI核心模块 (v74.0.0 - [地图重构] 恢复节点点击监听)
  * @author Gemini (CTO)
- * @version 64.0.0
+ * @version 74.0.0
  */
 (function() {
     'use strict';
@@ -25,7 +25,6 @@
             this.registerEventHandlers();
             this.registerDOMListeners();
             
-            // [新增] 检查菜单渲染器挂载点是否就绪
             return ids.every(id => dom[id] !== undefined) && this.menuRenderers;
         },
 
@@ -41,7 +40,6 @@
                 if (gameState.gameState === 'MENU') {
                     const renderer = this.menuRenderers[gameState.menu.current];
                     if (renderer) {
-                        // [修改] 修正调用上下文，确保菜单渲染器内部的this指向正确
                         renderer(document.getElementById('menu-content'));
                     }
                 }
@@ -58,6 +56,8 @@
 
         registerDOMListeners() {
             document.body.addEventListener('click', (event) => {
+                const gameState = game.State.get();
+
                 if (game.narrativeContext && !game.narrativeContext.isWaitingForChoice) {
                     const narrativeUi = event.target.closest('#narrative-ui');
                     const isOptionButton = event.target.closest('#narrative-options button');
@@ -66,43 +66,45 @@
                         return;
                     }
                 }
-                const target = event.target;
-                const actionTarget = target.closest('[data-action]');
-                if (actionTarget) {
+
+                const actionTarget = event.target.closest('[data-action]');
+                if (actionTarget && game.Actions[actionTarget.dataset.action]) {
                     const action = actionTarget.dataset.action;
-                    if (game.Actions[action]) {
-                        const param = actionTarget.dataset.direction || actionTarget.dataset.slotId || actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id || actionTarget.dataset.filter;
-                        event.stopPropagation();
-                        game.Actions[action](param);
-                        return;
-                    }
+                    const param = actionTarget.dataset.direction || actionTarget.dataset.slotId || actionTarget.dataset.slot || actionTarget.dataset.index || actionTarget.dataset.id || actionTarget.dataset.filter;
+                    event.stopPropagation();
+                    game.Actions[action](param);
+                    return;
                 }
-                const gameState = game.State.get();
+                
                 if (gameState.isCombat) {
-                    const targetCard = target.closest('.combatant-card.enemy');
+                    const targetCard = event.target.closest('.combatant-card.enemy');
                     if (targetCard) game.Actions.setFocusTarget(targetCard.id);
+
                 } else if (gameState.gameState === 'MENU') {
                     if (gameState.menu.current === 'PARTY') {
-                         const targetMember = target.closest('.relationship-entry');
+                         const targetMember = event.target.closest('.relationship-entry');
                          if (targetMember) game.Actions.viewRelationshipDetail(targetMember.dataset.id);
                     } else if (gameState.menu.current === 'INVENTORY') {
-                        const filterTab = target.closest('.inventory-filter-tab');
+                        const filterTab = event.target.closest('.inventory-filter-tab');
                         if (filterTab && filterTab.dataset.filter) {
                             game.state.menu.inventoryFilter = filterTab.dataset.filter;
                             this.render();
                         }
-                        const inventoryItemEntry = target.closest('.inventory-item-entry');
+                        const inventoryItemEntry = event.target.closest('.inventory-item-entry');
                         if (inventoryItemEntry && inventoryItemEntry.dataset.index) {
-                            if (!target.closest('button')) {
+                            if (!event.target.closest('button')) {
                                 this.showItemDetails(inventoryItemEntry.dataset.index);
                             }
                         }
                     }
                 } else if (gameState.gameState === 'MAP') {
-                    const mapNode = target.closest('.map-node');
-                    if (mapNode) game.Actions.handleMapNodeClick(mapNode.dataset.id);
+                    // [核心修改] 恢復為只監聽節點點擊
+                    const mapNode = event.target.closest('.map-node');
+                    if (mapNode) {
+                        game.Actions.handleMapNodeClick(mapNode);
+                    }
                 } else if (gameState.gameState === 'EXPLORE') {
-                    const hotspotCard = target.closest('.hotspot-card, .sparkle-hotspot');
+                    const hotspotCard = event.target.closest('.hotspot-card, .sparkle-hotspot');
                     if (hotspotCard && hotspotCard.dataset.interaction) {
                         const index = parseInt(hotspotCard.dataset.index, 10);
                         const type = hotspotCard.dataset.type;
@@ -137,19 +139,15 @@
         log(message, color = "var(--text-on-primary-color)") {
             const container = game.dom['scrolling-log-container'];
             if (!container) return;
-
             const MAX_LOGS = 10;
             if (container.children.length >= MAX_LOGS) {
                 container.removeChild(container.firstChild);
             }
-
             const p = document.createElement("p");
             p.className = 'log-message';
             p.style.color = color;
             p.innerHTML = message;
-
             container.appendChild(p);
-
             setTimeout(() => {
                 p.classList.add('fade-out');
                 p.addEventListener('animationend', () => p.remove());
@@ -172,7 +170,6 @@
         renderLeftPanel() {
             const dom = game.dom;
             const gameState = game.State.get();
-            
             const isCombat = gameState.isCombat && gameState.combatState && gameState.combatState.playerParty[0];
             const unit = isCombat ? gameState.combatState.playerParty[0] : gameState;
             const effectiveStats = isCombat ? unit.effectiveStats : gameState.effectiveStats;
@@ -200,7 +197,6 @@
                     </div>
                     <div class="primary-stats-container" id="left-panel-stats"></div>
                     <div class="effects-container" id="left-panel-effects"></div> `;
-                
                 const idsToCache = [
                     'left-panel-avatar', 'left-panel-player-name', 'left-panel-gold', 
                     'left-panel-date', 'left-panel-time', 
@@ -214,35 +210,26 @@
 
             const { name, gold, time } = gameState;
             const { hp, maxHp, mp, maxMp, activeEffects } = unit;
-            
             dom['left-panel-avatar'].innerHTML = this.getAvatarHtml(gameState);
             dom['left-panel-player-name'].textContent = name;
             dom['left-panel-gold'].innerHTML = `${gameData.icons.gold} ${gold}`;
-
             dom['left-panel-date'].textContent = `${time.year}年${time.month}月${time.day}日`;
             dom['left-panel-time'].textContent = `${gameData.settings.weekDays[new Date(time.year, time.month - 1, time.day).getDay()]} ${gameData.settings.timePhases[time.phase]}`;
-            
             dom['left-panel-hp-bar'].title = `健康: ${Math.ceil(hp)} / ${maxHp}`;
             dom['left-panel-hp-fill'].style.width = (maxHp > 0 ? (hp / maxHp) * 100 : 0) + '%';
             dom['left-panel-hp-text'].innerHTML = `<span>${gameData.icons.health}</span> ${Math.ceil(hp)} / ${maxHp}`;
-
             dom['left-panel-mp-bar'].title = `精力: ${Math.ceil(mp)} / ${maxMp}`;
             dom['left-panel-mp-fill'].style.width = (maxMp > 0 ? (mp / maxMp) * 100 : 0) + '%';
             dom['left-panel-mp-text'].innerHTML = `<span>${gameData.icons.energy}</span> ${Math.ceil(mp)} / ${maxMp}`;
-
             const statsContainer = dom['left-panel-stats'];
             statsContainer.innerHTML = ''; 
             for (const key in gameData.statNames) {
                 const statName = gameData.statNames[key];
                 const statEl = document.createElement('div');
                 statEl.className = 'primary-stat';
-                statEl.innerHTML = `
-                    <span class="stat-icon">${gameData.icons[key]}</span>
-                    <span class="stat-name">${statName}</span>
-                    <span class="stat-value">${effectiveStats[key]}</span>`;
+                statEl.innerHTML = `<span class="stat-icon">${gameData.icons[key]}</span><span class="stat-name">${statName}</span><span class="stat-value">${effectiveStats[key]}</span>`;
                 statsContainer.appendChild(statEl);
             }
-
             const effectsContainer = dom['left-panel-effects'];
             effectsContainer.innerHTML = '';
             const visibleEffects = (activeEffects || []).filter(effect => !effect.isHidden);
@@ -255,17 +242,9 @@
                     effectEl.className = `effect-entry ${effect.type || 'buff'}`;
                     const tooltip = `${effect.name}\n${effect.description}\n(${effect.duration === -1 ? '永久' : `剩余 ${effect.duration} 时段`})`;
                     effectEl.title = tooltip;
-                    
                     const showDuration = effect.duration > 0 || effect.duration === -1;
                     const durationDisplay = showDuration ? `<span class="effect-duration">${durationText}</span>` : '';
-
-                    effectEl.innerHTML = `
-                        <div class="effect-icon-container">
-                            <span class="effect-icon">${effect.icon}</span>
-                            ${durationDisplay}
-                        </div>
-                        <span class="effect-name">${effect.name}</span>
-                    `;
+                    effectEl.innerHTML = `<div class="effect-icon-container"><span class="effect-icon">${effect.icon}</span>${durationDisplay}</div><span class="effect-name">${effect.name}</span>`;
                     effectsGrid.appendChild(effectEl);
                  });
                  effectsContainer.appendChild(effectsGrid);
@@ -291,23 +270,45 @@
                 });
                 this.isBottomNavInitialized = true;
             }
+            
             const isMenu = gameState.gameState === "MENU";
             const currentMenu = gameState.menu?.current;
+            const isExploring = gameState.gameState === 'EXPLORE';
+            const isMapping = gameState.gameState === 'MAP';
             const isGloballyDisabled = gameState.isCombat || gameState.gameState === 'SEQUENCE' || !!game.narrativeContext || this.ModalManager.stack.length > 0;
 
             dom.navButtons.forEach((buttonEl, index) => {
                 const btnData = buttonsData[index];
-                let isActive = false, actionFn = null;
+                let isActive = false;
+                let actionFn = null;
+
                 if (btnData.id === 'MAP') {
-                    isActive = ['MAP', 'EXPLORE'].includes(gameState.gameState);
-                    actionFn = isMenu ? () => game.Actions.exitMenu() : (isActive ? null : () => game.Actions.showMap());
+                    isActive = isExploring || isMapping;
+                    if (isMenu) {
+                        actionFn = () => game.Actions.exitMenu();
+                    } else if (isExploring) {
+                        actionFn = () => game.Actions.showMap();
+                    } else if (isMapping) {
+                        actionFn = () => game.Actions.returnToScene();
+                    }
                 } else {
                     isActive = isMenu && currentMenu === btnData.id;
                     actionFn = () => game.Actions.setUIMode('MENU', { screen: btnData.id });
                 }
+                
                 buttonEl.className = `nav-button ${isActive ? 'active' : ''}`;
                 buttonEl.onclick = actionFn;
-                buttonEl.disabled = isGloballyDisabled || (actionFn === null) || isActive;
+
+                let isDisabled = isGloballyDisabled || !actionFn;
+                if (isActive) {
+                    if (isMenu && currentMenu === btnData.id) {
+                        isDisabled = true;
+                    }
+                    if (!isMenu && (isExploring || isMapping) && btnData.id === 'MAP') {
+                        isDisabled = true;
+                    }
+                }
+                buttonEl.disabled = isDisabled;
             });
         },
 
@@ -353,15 +354,8 @@
         showItemDetails(inventoryIndex, payloadOverrides = {}) {
             const item = game.State.get().inventory[inventoryIndex];
             if (!item) return;
-
-            const basePayload = {
-                item: item,
-                itemData: gameData.items[item.id],
-                index: inventoryIndex,
-            };
-
+            const basePayload = { item: item, itemData: gameData.items[item.id], index: inventoryIndex };
             const finalPayload = { ...basePayload, ...payloadOverrides };
-
             return this.ModalManager.push({ type: 'item_details', payload: finalPayload });
         },
 
@@ -379,7 +373,6 @@
             const itemStack = game.State.get().inventory[index];
             const itemData = gameData.items[itemStack.id];
             if (!itemData) return Promise.resolve(null);
-
             return this.ModalManager.push({
                 type: 'quantity_prompt',
                 payload: {

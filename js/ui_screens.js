@@ -1,8 +1,8 @@
 /**
  * @file js/ui_screens.js
- * @description UI模块 - 主屏幕渲染器 (v67.0.0 - [重构] 适配统一世界地图)
+ * @description UI模块 - 主屏幕渲染器 (v73.0.0 - [地图重构] 恢复节点渲染)
  * @author Gemini (CTO)
- * @version 67.0.0
+ * @version 73.0.0
  */
 (function() {
     'use strict';
@@ -84,7 +84,7 @@
             // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             const gameState = game.State.get();
-            dom.screen.innerHTML = ''; // 清空
+            dom.screen.innerHTML = '';
             dom.screen.className = 'explore-screen';
             
             const location = gameData.locations[gameState.currentLocationId];
@@ -99,6 +99,8 @@
             ]);
 
             const sparkles = (location.discoveries || []).map((spot, index) => {
+                if (spot.isGlobal) return null;
+
                 const isActivated = game.ConditionChecker.evaluate(spot.activationConditions);
                 const isDestroyed = (gameState.variables[`discovery_destroyed_${gameState.currentLocationId}_${index}`] || 0) === 1;
                 const isDeactivated = spot.deactivationConditions && game.ConditionChecker.evaluate(spot.deactivationConditions);
@@ -187,6 +189,7 @@
             });
         },
 
+        // [核心修改] 恢复到简洁的节点渲染模式
         MAP() {
             const dom = game.dom;
             dom.screen.innerHTML = '';
@@ -194,27 +197,28 @@
             dom.screen.style.backgroundImage = '';
             
             const gameState = game.State.get();
-            // [修改] 直接获取我们唯一的地图数据
             const mapData = gameData.maps.world; 
             if (!mapData) {
                 console.error("世界地图 'world' 未在 data/locations.js 中定义！");
                 return;
             }
 
-            dom.screen.appendChild(createElement('div', { className: 'location-header' }, [
+            const header = createElement('div', { className: 'location-header' }, [
                 createElement('h2', { textContent: mapData.name })
-            ]));
+            ]);
 
-            const mapContainer = createElement('div', { style: { position: 'relative', width: '100%', height: '100%' } });
+            const mapContainer = createElement('div', { 
+                id: 'map-container',
+                style: { position: 'relative', width: '100%', height: '100%' } 
+            });
 
-            // ... (绘制连接线和节点的代码无变化)
             mapData.connections.forEach(conn => {
                 const node1 = mapData.nodes[conn[0]];
                 const node2 = mapData.nodes[conn[1]];
                 if (!node1 || !node2) return;
                 const x1 = node1.x, y1 = node1.y, x2 = node2.x, y2 = node2.y;
                 const deltaX = (x2 - x1) * (dom.screen.clientWidth / 100);
-                const deltaY = (y2 - y1) * ((dom.screen.clientHeight - 48) / 100); // 减去header高度
+                const deltaY = (y2 - y1) * ((dom.screen.clientHeight - 48) / 100);
                 const distance = Math.hypot(deltaX, deltaY);
                 const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
                 
@@ -226,9 +230,10 @@
 
             for (const nodeId in mapData.nodes) {
                 const nodeData = mapData.nodes[nodeId];
+                if (!game.ConditionChecker.evaluate(nodeData.conditions)) continue;
+
                 let nodeClasses = 'map-node';
                 if (nodeId === gameState.currentMapNodeId) nodeClasses += ' current';
-                if (!game.ConditionChecker.evaluate(nodeData.conditions)) nodeClasses += ' inactive';
 
                 mapContainer.appendChild(createElement('div', {
                     className: nodeClasses,
@@ -240,7 +245,7 @@
                 ]));
             }
 
-            dom.screen.appendChild(mapContainer);
+            dom.screen.append(header, mapContainer);
         },
 
         MENU() {

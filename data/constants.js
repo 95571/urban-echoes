@@ -1,6 +1,6 @@
 /**
  * @file data/constants.js
- * @description 游戏内容 - 全局常量 (v59.1.0)
+ * @description 游戏内容 - 全局常量 (v60.0.0 - [地图升级] 新增隐藏地点变量)
  * @description [新增] 为效果触发系统增加战斗事件常量
  */
 
@@ -44,6 +44,7 @@ window.gameData.constants = {
         CHEAT_UNLOCKED: 'cheat_unlocked',
         A_LETTER_APPEARED: 'a_letter_appeared',
         LETTER_READ: 'letter_read',
+        FOUND_SECRET_GARDEN: 'found_secret_garden', // [新增] 发现隐藏地点的变量
 
         // 计数器
         THUG_DEFEAT_COUNT: 'thug_defeat_count',

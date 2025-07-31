@@ -1,8 +1,8 @@
 /**
  * @file data/locations.js
- * @description 游戏内容 - 统一世界地图与地点数据 (v67.0.0)
+ * @description 游戏内容 - 统一世界地图与地点数据 (v69.0.0 - [地图重构] 移除距离发现物)
  * @author Gemini (CTO)
- * @version 67.0.0
+ * @version 69.0.0
  */
 
 // [重构] 初始化唯一的地图和地点挂载点
@@ -22,12 +22,21 @@ window.gameData.maps.world = {
         "map_node_old_home": { name: "老家", icon: gameData.icons.home, x: 85, y: 50, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_old_home' } } } ] } },
         "map_node_grandma_home": { name: "姥姥家", icon: '👵', x: 90, y: 40, interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_grandma_home' } } } ] } },
         "map_node_market": { name: "菜市场", icon: gameData.icons.market, x: 78, y: 35, interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_NODE_MARKET" } } },
+        
+        "map_node_secret_garden": {
+            name: "秘密花园",
+            icon: '🌸',
+            x: 90, y: 85,
+            conditions: [ // 只有满足此条件，节点才可见
+                { type: 'variable', varId: VARS.FOUND_SECRET_GARDEN, comparison: '==', value: 1 }
+            ],
+            interaction: { type: 'action_block', payload: [ { action: { type: 'enter_location', payload: { locationId: 'location_secret_garden' } } } ] }
+        }
     },
-    // [修改] 更新连接关系以反映统一地图
     connections: [ 
         ["map_node_home", "map_node_downtown"], 
         ["map_node_downtown", "map_node_bus_station"],
-        ["map_node_bus_station", "map_node_hometown_station"], // 关键连接
+        ["map_node_bus_station", "map_node_hometown_station"],
         ["map_node_hometown_station", "map_node_old_home"],
         ["map_node_old_home", "map_node_grandma_home"],
         ["map_node_old_home", "map_node_market"]
@@ -109,7 +118,15 @@ Object.assign(window.gameData.locations, {
         ]
     },
     // 老家地点
-    "location_old_home": { name: "老家的房子", description: "充满回忆的旧屋。", imageUrl: "images/location_old_home.png", hotspots: [ { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } } ] },
+    "location_old_home": { 
+        name: "老家的房子", 
+        description: "充满回忆的旧屋。", 
+        imageUrl: "images/location_old_home.png", 
+        hotspots: [ 
+            { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } } 
+        ]
+        // [核心移除] 删除了此处的 discoveries 数组
+    },
 	"location_grandma_home": { name: "姥姥家的房子", description: "姥姥就住在老家隔壁。", imageUrl: "images/location_grandma_home.png", hotspots: [
             { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } },
 			{ label: "姥姥", icon: "👵", interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_GRANDMA_GREETING" } } }
@@ -121,6 +138,31 @@ Object.assign(window.gameData.locations, {
         hotspots: [
             { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } },
             { label: "肉摊", icon: "🍖", interaction: { type: 'start_dialogue', payload: { dialogueId: "DIALOGUE_BUTCHER_GREETING" } } }
+        ]
+    },
+    "location_secret_garden": {
+        name: "秘密花园",
+        description: "一个被遗忘的美丽花园，空气中弥漫着花香。",
+        imageUrl: "images/location_park.png",
+        hotspots: [
+            { label: "返回地图", icon: "🗺️", interaction: { type: 'action_block', payload: [{ action: { type: 'showMap' } }] } }
+        ]
+    },
+    "location_cheat_room": {
+        name: "随身空间",
+        description: "一个绝对安全的私人空间，你可以在这里整理思绪。",
+        imageUrl: "images/location_study.png",
+        hotspots: [
+            {
+                label: "离开",
+                icon: "🚪",
+                interaction: {
+                    type: "action_block",
+                    payload: [
+                        { action: { type: 'exit_pocket_dimension' } }
+                    ]
+                }
+            }
         ]
     }
 });

@@ -1,6 +1,6 @@
 /**
  * @file screens.css
- * @description 游戏样式表 - 主屏幕模块 (v2.3.0 - [修复] 移除破坏排版的placeholder样式)
+ * @description 游戏样式表 - 主屏幕模块 (v3.3.0 - [地图重构] 移除玩家图标样式)
  */
 
 /* --- 探索屏幕 (Explore Screen) --- */
@@ -19,6 +19,9 @@
     flex-shrink: 0;
     backdrop-filter: blur(2px);
     z-index: 20;
+}
+.map-screen .location-header {
+    height: 48px;
 }
 .location-header h2 {
     font-size: 1.1em;
@@ -182,7 +185,6 @@
     position: relative;
     background: var(--bg-color);
 }
-/* --- [重构] 新版状态页 STATUS --- */
 #status-container-grid {
     display: grid;
     grid-template-columns: 40% 1fr;
@@ -194,11 +196,11 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
-    min-height: 0; /* Important for flex children to scroll */
+    min-height: 0;
 }
 .status-main-avatar {
     width: 100%;
-    padding-top: 100%; /* 1:1 Aspect Ratio */
+    padding-top: 100%;
     height: 0;
     position: relative;
     background-color: var(--bg-color);
@@ -289,7 +291,7 @@
 }
 .equipped-slot-card .slot-icon {
     width: 100%;
-    padding-top: 100%; /* 1:1 Aspect Ratio */
+    padding-top: 100%;
     height: 0;
     background-color: var(--bg-color);
     border-radius: 4px;
@@ -354,7 +356,7 @@
 .skill-list-container, .perks-list-container, .effects-list-container {
     overflow-y: auto;
     flex-grow: 1;
-    padding-right: 5px; /* for scrollbar */
+    padding-right: 5px;
 }
 .skill-list-container.is-scrollable, .perks-list-container.is-scrollable, .effects-list-container.is-scrollable { cursor: grab; }
 .skill-list-container.is-scrollable:active, .perks-list-container.is-scrollable:active, .effects-list-container.is-scrollable:active { cursor: grabbing; }
@@ -377,8 +379,6 @@
 .effects-list li { padding: 6px 0; }
 .effects-list span:first-child { font-weight: 500; }
 .effects-list span:last-child { color: var(--text-muted-color); font-size: 0.9em; }
-
-/* INVENTORY */
 .inventory-item-entry { display: flex; flex: 1; align-items: center; gap: 10px; }
 .inventory-item-entry[data-index] { cursor: pointer; }
 .item-icon { width: 40px; height: 40px; flex-shrink: 0; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; background-size: cover; background-position: center; }
@@ -406,8 +406,6 @@
 input[type=range].quantity-slider { flex-grow: 1; -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: var(--panel-color); outline: none; border-radius: 4px; border: 1px solid var(--border-color); }
 input[type=range].quantity-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: var(--primary-color); cursor: pointer; border-radius: 50%; border: 2px solid var(--bg-color); }
 input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px; background: var(--primary-color); cursor: pointer; border-radius: 50%; border: 2px solid var(--bg-color); }
-
-/* --- 装备选择弹窗样式 --- */
 .custom-modal-box.large {
     max-width: 800px;
     width: 95%;
@@ -446,24 +444,18 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .preview-actions button {
     width: 100%;
 }
-
-/* [新增] 请求3：为装备详情弹窗增加自定义定位 */
 .custom-modal-overlay.equip-detail-view {
     justify-content: flex-end;
     padding-right: 5%;
 }
 .custom-modal-overlay.equip-detail-view .custom-modal-box {
-    margin-right: 20px; /* 增加一些右边距，使其不完全贴边 */
+    margin-right: 20px;
 }
-
-
-/* PARTY */
 .party-member-list li { display: grid; grid-template-columns: auto 1fr; gap: 0 15px; align-items: center; padding: 8px 12px; cursor: pointer; transition: background-color 0.2s; }
 .party-member-list li:hover { background-color: var(--panel-color); }
 .party-member-info { display: flex; flex-direction: column; gap: 4px; }
 .party-member-info small { font-size: 0.8em; color: var(--text-muted-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .party-member-avatar { width: 48px; height: 48px; background-color: var(--bg-color); border-radius: 6px; overflow: hidden; position: relative; background-image: url('images/unknown.png'); background-size: cover; background-position: center; }
-/* QUESTS */
 .job-board-content { display: flex; flex-direction: column; gap: 15px; }
 .job-list { list-style: none; padding: 0; margin: 0; height: 350px; overflow-y: auto; padding-right: 5px; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); background: var(--bg-color); }
 .job-list.is-scrollable { cursor: grab; }
@@ -492,10 +484,8 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .quest-details-content p { color: var(--text-muted-color); line-height: 1.6; margin-bottom: 15px; }
 .quest-details-content ul { list-style: none; padding: 0; margin: 0; }
 .quest-details-content li { padding: 4px 0; }
-/* SYSTEM */
 .save-slot-list li { background-color: var(--bg-color); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--secondary-color); }
 
-/* --- 战斗屏幕 (Combat Screen) --- */
 #screen.combat-screen {
     display: flex;
     flex-direction: column;
@@ -610,8 +600,6 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .bar-fill { height: 100%; transition: width 0.5s ease-out; }
 .hp-bar .bar-fill { background-color: var(--success-color); }
 .mp-bar .bar-fill { background-color: var(--primary-color); }
-
-/* --- 序列屏幕 (Sequence Screen) --- */
 .sequence-screen {
     padding: 0;
     background-color: var(--bg-color);
@@ -664,8 +652,6 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
     text-align: center;
     font-size: 1.1em;
 }
-
-/* --- 地图屏幕 (Map Screen) --- */
 .map-screen {
     position: relative;
     width: 100%;
@@ -673,12 +659,16 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
     background: linear-gradient(to bottom, #e9f0f5, #d9e2e8);
     overflow: hidden;
 }
+#map-container {
+    cursor: pointer;
+}
 .map-line {
     position: absolute;
     height: 3px;
     background-color: #aab8c2;
     transform-origin: 0 50%;
     z-index: 5;
+    pointer-events: none;
 }
 .map-node {
     position: absolute;
@@ -725,8 +715,6 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
     border-radius: 4px;
     padding: 1px 0;
 }
-
-/* --- 标题屏幕 (Title Screen) --- */
 .title-screen {
     display: flex;
     flex-direction: column;
@@ -764,8 +752,6 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
     font-size: 1.1em;
     padding: 12px;
 }
-
-/* --- 动画效果 --- */
 @keyframes sparkle-fade-in { from { opacity: 0; transform: scale(0); } to { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } }
 @keyframes sparkle-breathing { 0%, 100% { transform: scale(var(--anim-scale-min, 0.8)); opacity: 0.9; } 50% { transform: scale(var(--anim-scale-max, 1.2)); opacity: 1; } }
 @keyframes combat-hit-animation { 0% { transform: translate(0, 0) rotate(0); } 15% { transform: translate(-2px, -2px) rotate(-1deg); } 30% { transform: translate(2px, 0) rotate(1deg); } 45% { transform: translate(-2px, 2px) rotate(-1deg); } 60% { transform: translate(2px, -2px) rotate(1deg); } 75% { transform: translate(-2px, 0) rotate(-1deg); } 100% { transform: translate(0, 0) rotate(0); } }

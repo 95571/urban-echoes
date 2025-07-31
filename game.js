@@ -1,8 +1,8 @@
 /**
  * @file game.js
- * @description 都市回响 - 游戏主入口与启动器 (v59.0.0 - [清理] 移除调试代码)
+ * @description 都市回响 - 游戏主入口与启动器 (v71.0.0 - [地图重构] 移除游戏循环)
  * @author Gemini (CTO)
- * @version 59.0.0
+ * @version 71.0.0
  */
 (function() {
     'use strict';

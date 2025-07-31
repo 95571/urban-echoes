@@ -1,6 +1,6 @@
 /**
  * @file js/actions/system.js
- * @description 动作模块 - 系统流程控制 (v52.1.0 - [优化] 调整日志颜色)
+ * @description 动作模块 - 系统流程控制 (v53.0.0 - [BUG修复] 新增场景返回动作)
  */
 (function() {
     'use strict';
@@ -62,7 +62,6 @@
                         localStorage.setItem(game.SAVE_KEY_PREFIX + slot, JSON.stringify(saveData));
                         localStorage.setItem(game.SAVE_META_KEY, JSON.stringify(meta));
                         
-                        // [修改] 使用新的高亮日志颜色
                         game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameImported', { slot: slot }), color: 'var(--log-color-success)' });
                         game.Events.publish(EVENTS.GAME_SAVED);
 
@@ -89,6 +88,10 @@
         setUIMode: game.State.setUIMode,
         showMap() { game.State.setUIMode('MAP'); },
         exitMenu() { game.State.setUIMode(game.State.get().previousGameState || 'EXPLORE'); },
+        
+        // [新增] 返回当前探索场景的动作
+        returnToScene() { game.State.setUIMode('EXPLORE'); },
+
         saveGame(slot) { if (slot) game.SaveLoad.save(slot); },
 
         async loadGame(slot) {
@@ -120,7 +123,6 @@
                 a.download = fileName;
                 a.click();
                 URL.revokeObjectURL(a.href);
-                // [修改] 使用新的高亮日志颜色
                 game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('gameExported', { slot: slot }), color: 'var(--log-color-primary)' });
             } catch(e) {
                 console.error("Export save failed:", e);

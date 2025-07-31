@@ -1,8 +1,8 @@
 /**
  * @file js/actions/player.js
- * @description 动作模块 - 玩家动作 (v62.3.0 - [修复] 接受任务后发布状态变更事件)
+ * @description 动作模块 - 玩家动作 (v63.0.0 - [BUG修复] 修正非消耗品被错误消耗的问题)
  * @author Gemini (CTO)
- * @version 62.3.0
+ * @version 63.0.0
  */
 (function() {
     'use strict';
@@ -22,12 +22,15 @@
             if (itemData.onUseActionBlock) {
                 await this.executeActionBlock(itemData.onUseActionBlock);
             }
-
-            const itemIndex = gameState.inventory.findIndex(i => i.id === itemStack.id && i === itemStack);
-            if (itemIndex > -1) {
-                gameState.inventory[itemIndex].quantity--;
-                if (gameState.inventory[itemIndex].quantity <= 0) {
-                    gameState.inventory.splice(itemIndex, 1);
+            
+            // [核心修复] 只有消耗品才会被消耗
+            if (itemData.type === 'consumable') {
+                const itemIndex = gameState.inventory.findIndex(i => i.id === itemStack.id && i === itemStack);
+                if (itemIndex > -1) {
+                    gameState.inventory[itemIndex].quantity--;
+                    if (gameState.inventory[itemIndex].quantity <= 0) {
+                        gameState.inventory.splice(itemIndex, 1);
+                    }
                 }
             }
 
@@ -206,7 +209,6 @@
                 objectives: JSON.parse(JSON.stringify(jobData.objectives || []))
             };
             game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: game.Utils.formatMessage('jobAccepted', { jobName: jobData.title }), color: 'var(--log-color-primary)' });
-            // [新增] 发布状态变更事件，以便UI（如任务公告板）可以刷新
             game.Events.publish(EVENTS.STATE_CHANGED);
         },
         playerCombatAttack() { game.Combat.playerAttack(); },

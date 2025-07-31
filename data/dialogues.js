@@ -1,10 +1,26 @@
 /**
  * @file data/dialogues.js
- * @description 游戏内容 - 扁平化对话节点 (v67.0.0 - [重构] 适配统一世界地图)
- * @version 67.0.0
+ * @description 游戏内容 - 扁平化对话节点 (v68.2.0 - [口袋空间] 新增作弊菜单对话)
+ * @version 68.2.0
  */
 window.gameData.dialogues = {
-    // ... (其他对话代码无变化，为节省篇幅已折叠)
+    // [新增] 作弊菜单对话
+    "DIALOGUE_CHEAT_MENU": {
+        dialogueText: [{ avatar: 'images/item_phone.png', text: '一个隐藏的开发者菜单。' }],
+        options: [
+            {
+                text: "进入随身空间",
+                conditions: [
+                    { type: 'variable', varId: VARS.CHEAT_UNLOCKED, comparison: '==', value: 1 }
+                ],
+                actionBlock: [
+                    { action: { type: 'enter_pocket_dimension', payload: { locationId: 'location_cheat_room' } } }
+                ]
+            },
+            { text: "关闭" }
+        ]
+    },
+
     "DIALOGUE_COMPUTER_CHOICE": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '电脑屏幕上显示着一个“公司福利”活动页面。' }],
         options: [
@@ -44,7 +60,6 @@ window.gameData.dialogues = {
         options: [ { text: '6楼 (晓雨家)', actionBlock: [ { action: { type: 'log', payload: { text: '你按下了6楼的按钮，电梯缓缓上升...' } } } ] }, { text: '9楼 (阿明家)', actionBlock: [ { action: { type: 'log', payload: { text: '你按下了9楼的按钮，电梯缓缓上升...' } } } ] }, { text: '离开电梯' } ]
     },
 
-    // [修改] 地图节点对话，移除不再需要的对话
     "DIALOGUE_NODE_BUS_STATION": {
         dialogueText: [{ avatar: 'images/bus.png', name: '旅行提示', text: '你要去哪里？' }],
         options: [ 
@@ -53,9 +68,8 @@ window.gameData.dialogues = {
                 actionBlock: [ 
                     { action: { type: 'log', payload: { text: '你坐上了长途汽车...' } } }, 
                     { action: { type: 'advanceTime', payload: { phases: gameData.settings.travelTime.bus_long_distance } } }, 
-                    { action: { type: 'modify_variable', payload: { varId: 'currentMapNodeId', operation: 'set', value: 'map_node_hometown_station' } } },
-                    { action: { type: 'log', payload: { text: '经过一路奔波，你抵达了老家。', color: 'var(--log-color-primary)' } } },
-                    { action: { type: 'showMap' } }
+                    { action: { type: 'modify_variable', payload: { varId: 'lastVisitedMapNodeId', operation: 'set', value: 'map_node_hometown_station' } } },
+                    { action: { type: 'log', payload: { text: '经过一路奔波，你抵达了老家。', color: 'var(--log-color-primary)' } } }
                 ]
             }, 
             { text: '我再想想' } 
@@ -81,7 +95,26 @@ window.gameData.dialogues = {
     },
     "DIALOGUE_PHOTO_ALBUM": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '一本落满灰尘的旧相册，里面是满满的童年回忆。' }],
-        options: [{ text: "默默放回" }]
+        options: [
+            {
+                text: "打开相册",
+                actionBlock: [
+                    { action: { type: 'log', payload: { text: "你发现了记忆深处的秘境。", color: 'var(--log-color-primary)' } } },
+                    { action: { type: 'modify_variable', payload: { varId: VARS.FOUND_SECRET_GARDEN, operation: 'set', value: 1 } } }
+                ]
+            },
+            { 
+                text: "合上相册，尘封记忆",
+                conditions: [
+                    { type: 'variable', varId: VARS.FOUND_SECRET_GARDEN, comparison: '==', value: 1 }
+                ],
+                actionBlock: [
+                    { action: { type: 'log', payload: { text: "你合上了相册，关于那个地方的记忆也随之模糊...", color: 'var(--text-muted-color)' } } },
+                    { action: { type: 'modify_variable', payload: { varId: VARS.FOUND_SECRET_GARDEN, operation: 'set', value: 0 } } }
+                ]
+            },
+            { text: "默默放回" }
+        ]
     },
     "DIALOGUE_MYSTERY_LETTER": {
         dialogueText: [{ avatar: 'images/player_dialogue.png', text: '窗台上放着一封未署名的信，信封是蓝色的。你要打开它吗？' }],

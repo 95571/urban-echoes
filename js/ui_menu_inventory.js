@@ -1,8 +1,8 @@
 /**
  * @file js/ui_menu_inventory.js
- * @description UI模块 - 物品菜单渲染器 (v64.0.0)
+ * @description UI模块 - 物品菜单渲染器 (v65.0.0 - [BUG修复] 修正物品可用逻辑)
  * @author Gemini (CTO)
- * @version 64.0.0
+ * @version 65.0.0
  */
 (function() {
     'use strict';
@@ -59,8 +59,16 @@
             filteredInventory.forEach(item => {
                 const itemData = gameData.items[item.id];
                 const actions = [];
-                if (itemData.type === 'consumable') actions.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: item.originalIndex } }));
-                if (itemData.slot) actions.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: item.originalIndex } }));
+                
+                // [核心修复] 判断物品是否可用的逻辑，从检查type变为检查是否存在onUseActionBlock
+                if (itemData.onUseActionBlock) {
+                    actions.push(createElement('button', { textContent: '使用', dataset: { action: 'useItem', index: item.originalIndex } }));
+                }
+
+                if (itemData.slot) {
+                    actions.push(createElement('button', { textContent: '装备', dataset: { action: 'equipItem', index: item.originalIndex } }));
+                }
+                
                 if (itemData.droppable !== false) {
                    actions.push(createElement('button', { textContent: '丢弃', className: 'danger-button', dataset: { action: 'dropItem', index: item.originalIndex } }));
                 }

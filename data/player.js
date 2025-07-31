@@ -1,7 +1,7 @@
 /**
  * @file data/player.js
- * @description 游戏内容 - 初始玩家状态 (v67.0.0 - [重构] 移除currentMapId以支持统一世界地图)
- * @version 67.0.0
+ * @description 游戏内容 - 初始玩家状态 (v69.0.0 - [地图重构] 回归节点系统)
+ * @version 69.0.0
  */
 window.gameData.initialPlayerState = {
     id: "player", name: "无名者", gold: 0,
@@ -33,11 +33,15 @@ window.gameData.initialPlayerState = {
     ],
     time: { year: 2025, month: 7, day: 7, phase: 0, },
     currentLocationId: "location_living_room",
+    
+    // [地图重构] 回归到经典的节点系统
     currentMapNodeId: "map_node_home",
-    // [移除] currentMapId
+
     hotspotPageIndex: 0,
     gameState: "TITLE",
     previousGameState: "TITLE",
     activeSequence: null,
     isCombat: false, combatState: null,
+    
+    pocketDimensionReturnState: null, 
 };
