@@ -1,8 +1,8 @@
 /**
  * @file js/utils.js
- * @description 通用工具与条件检查器模块 (v59.2.0 - [修复] 派生属性取整)
+ * @description 通用工具与条件检查器模块 (v80.0.0 - [动画] 新增寻路算法)
  * @author Gemini (CTO)
- * @version 59.2.0
+ * @version 80.0.0
  */
 (function() {
     'use strict';
@@ -157,7 +157,7 @@
                 }
             }
             game.Perk.applyPassiveEffects(unit, effectiveStats);
-            
+
             if (unit.activeEffects) {
                 unit.activeEffects.forEach(effect => {
                     (effect.persistentModifiers || []).forEach(modifier => {
@@ -168,7 +168,7 @@
                     });
                 });
             }
-            
+
             // Pass 2: Build final context
             const finalContext = { ...unit, ...effectiveStats };
             finalContext.variables = game.State.get().variables || {};
@@ -179,12 +179,12 @@
             for (const key in customFormulas) {
                 finalContext[key] = this.evaluateFormula(customFormulas[key], finalContext);
             }
-            
+
             // Pass 4: Derived stats
             for (const key of derivedStatKeys) {
                 effectiveStats[key] = this.evaluateFormula(gameData.formulas_primary[key], finalContext);
             }
-            
+
             if (unit.equipped) {
                 for (const slotId in unit.equipped) {
                     const item = gameData.items[unit.equipped[slotId]?.itemId];
@@ -208,9 +208,8 @@
                     });
                 });
             }
-            
-            // [新增] Pass 5: Final rounding
-            // 对所有派生属性向下取整，确保游戏数值的稳定与可预测性
+
+            // Pass 5: Final rounding
             for (const key of derivedStatKeys) {
                 if (typeof effectiveStats[key] === 'number') {
                     effectiveStats[key] = Math.floor(effectiveStats[key]);
@@ -222,6 +221,50 @@
             }
 
             return effectiveStats;
+        },
+
+        // [核心新增] 使用广度优先搜索(BFS)算法寻找地图节点间的最短路径
+        findShortestPath(mapId, startNodeId, endNodeId) {
+            const mapData = gameData.maps[mapId];
+            if (!mapData || !mapData.nodes[startNodeId] || !mapData.nodes[endNodeId]) {
+                return null; // 无效输入
+            }
+            if (startNodeId === endNodeId) return [startNodeId];
+
+            const adj = {}; // 邻接表
+            for (const nodeId in mapData.nodes) {
+                adj[nodeId] = [];
+            }
+            mapData.connections.forEach(([a, b]) => {
+                adj[a].push(b);
+                adj[b].push(a);
+            });
+
+            const queue = [startNodeId];
+            const visited = { [startNodeId]: true };
+            const parent = { [startNodeId]: null };
+
+            while (queue.length > 0) {
+                const currentNode = queue.shift();
+                if (currentNode === endNodeId) {
+                    // 找到了，回溯路径
+                    const path = [];
+                    let curr = endNodeId;
+                    while (curr !== null) {
+                        path.unshift(curr);
+                        curr = parent[curr];
+                    }
+                    return path;
+                }
+                for (const neighbor of adj[currentNode]) {
+                    if (!visited[neighbor]) {
+                        visited[neighbor] = true;
+                        parent[neighbor] = currentNode;
+                        queue.push(neighbor);
+                    }
+                }
+            }
+            return null; // 找不到路径
         }
     };
 

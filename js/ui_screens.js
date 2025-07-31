@@ -1,8 +1,8 @@
 /**
  * @file js/ui_screens.js
- * @description UI模块 - 主屏幕渲染器 (v73.0.0 - [地图重构] 恢复节点渲染)
+ * @description UI模块 - 主屏幕渲染器 (v80.0.0 - [动画] 新增移动图标占位符)
  * @author Gemini (CTO)
- * @version 73.0.0
+ * @version 80.0.0
  */
 (function() {
     'use strict';
@@ -45,13 +45,13 @@
             const sequenceData = gameData.questionSequences[sequenceState.sequenceId];
             const questionData = sequenceData.questions[sequenceState.currentQuestionId];
             if (!questionData) return;
-            
+
             let answersContainer;
             if (questionData.type === 'multiple_choice') {
-                answersContainer = createElement('div', { className: 'sequence-answers' }, 
-                    questionData.answers.map((answer, index) => 
-                        createElement('button', { 
-                            textContent: answer.text, 
+                answersContainer = createElement('div', { className: 'sequence-answers' },
+                    questionData.answers.map((answer, index) =>
+                        createElement('button', {
+                            textContent: answer.text,
                             eventListeners: { click: () => game.Actions.handleSequenceAnswer(index) }
                         })
                     )
@@ -60,17 +60,17 @@
                 const textInput = createElement('input', { id: 'sequence-text-input', attributes: { type: 'text', placeholder: '请输入你的名字...' } });
                 answersContainer = createElement('div', { className: 'sequence-answers' }, [
                     textInput,
-                    createElement('button', { 
+                    createElement('button', {
                         textContent: questionData.answers[0].text,
                         eventListeners: { click: () => game.Actions.handleSequenceTextInput(textInput.value) }
                     })
                 ]);
             }
-            
-            const imageContainer = createElement('div', { className: 'sequence-image-container' }, 
+
+            const imageContainer = createElement('div', { className: 'sequence-image-container' },
                 questionData.imageUrl ? [createElement('img', { attributes: { src: questionData.imageUrl, alt: '情景图片' } })] : []
             );
-            
+
             const qaContainer = createElement('div', { className: 'sequence-qa-container' }, [
                 createElement('div', { className: 'sequence-question', textContent: questionData.text }),
                 answersContainer
@@ -86,7 +86,7 @@
             const gameState = game.State.get();
             dom.screen.innerHTML = '';
             dom.screen.className = 'explore-screen';
-            
+
             const location = gameData.locations[gameState.currentLocationId];
             if (!location) {
                 game.UI.log(game.Utils.formatMessage('errorNotFound', { target: gameState.currentLocationId }), "var(--error-color)");
@@ -107,8 +107,8 @@
                 if (!isActivated || isDeactivated || isDestroyed) return null;
 
                 const anim = spot.animation || {};
-                const style = { 
-                    left: `${spot.x}%`, top: `${spot.y}%`, 
+                const style = {
+                    left: `${spot.x}%`, top: `${spot.y}%`,
                     '--anim-fade-in-duration': anim.fadeInDuration || '1s',
                     '--anim-period': anim.period || '2.5s',
                     '--anim-scale-min': anim.scaleMin || 0.8,
@@ -119,9 +119,9 @@
                 return createElement('div', {
                     className: 'sparkle-hotspot',
                     style: style,
-                    dataset: { 
+                    dataset: {
                         interaction: JSON.stringify(spot).replace(/'/g, "&apos;"),
-                        index: index, 
+                        index: index,
                         type: 'discovery',
                         fadeInDuration: anim.fadeInDuration || '1s'
                     }
@@ -142,16 +142,16 @@
             const visibleHotspots = availableHotspots.slice(startIndex, endIndex);
 
             const hotspotCards = visibleHotspots.map(({ spot, index }) => {
-                const iconContent = spot.interaction?.payload?.imageUrl 
+                const iconContent = spot.interaction?.payload?.imageUrl
                     ? createElement('img', { attributes: { src: spot.interaction.payload.imageUrl, alt: spot.label } })
                     : (spot.icon || '📍');
-                
+
                 return createElement('div', {
                     className: 'hotspot-card',
-                    dataset: { 
-                        interaction: JSON.stringify(spot).replace(/'/g, "&apos;"), 
-                        index: index, 
-                        type: 'hotspot' 
+                    dataset: {
+                        interaction: JSON.stringify(spot).replace(/'/g, "&apos;"),
+                        index: index,
+                        type: 'hotspot'
                     }
                 }, [
                     createElement('div', { className: 'hotspot-icon' }, [iconContent]),
@@ -165,11 +165,11 @@
             }, [
                 ...sparkles,
                 createElement('div', { className: 'hotspot-container' }, [
-                    pageIndex > 0 
+                    pageIndex > 0
                         ? createElement('button', { className: 'hotspot-arrow left', dataset: { action: 'paginateHotspots', direction: '-1' }, innerHTML: '◄' })
                         : createElement('div', { style: { width: '40px', flexShrink: 0 } }),
                     createElement('div', { className: 'hotspot-cards-wrapper' }, hotspotCards),
-                    endIndex < availableHotspots.length 
+                    endIndex < availableHotspots.length
                         ? createElement('button', { className: 'hotspot-arrow right', dataset: { action: 'paginateHotspots', direction: '1' }, innerHTML: '►' })
                         : createElement('div', { style: { width: '40px', flexShrink: 0 } })
                 ])
@@ -177,7 +177,7 @@
 
             dom.screen.appendChild(header);
             dom.screen.appendChild(mapArea);
-            
+
             dom.screen.querySelectorAll('.sparkle-hotspot').forEach(sparkle => {
                 const core = sparkle.querySelector('.sparkle-core');
                 const fadeInMs = parseFloat(sparkle.dataset.fadeInDuration) * 1000;
@@ -189,17 +189,16 @@
             });
         },
 
-        // [核心修改] 恢复到简洁的节点渲染模式
         MAP() {
             const dom = game.dom;
             dom.screen.innerHTML = '';
             dom.screen.className = 'map-screen';
             dom.screen.style.backgroundImage = '';
-            
+
             const gameState = game.State.get();
-            const mapData = gameData.maps.world; 
+            const mapData = gameData.maps[gameState.currentMapId];
             if (!mapData) {
-                console.error("世界地图 'world' 未在 data/locations.js 中定义！");
+                console.error(`地图 "${gameState.currentMapId}" 未在 data/locations.js 中定义！`);
                 return;
             }
 
@@ -207,34 +206,34 @@
                 createElement('h2', { textContent: mapData.name })
             ]);
 
-            const mapContainer = createElement('div', { 
+            const mapContainer = createElement('div', {
                 id: 'map-container',
-                style: { position: 'relative', width: '100%', height: '100%' } 
+                style: { position: 'relative', width: '100%', height: '100%' }
             });
 
-            mapData.connections.forEach(conn => {
-                const node1 = mapData.nodes[conn[0]];
-                const node2 = mapData.nodes[conn[1]];
-                if (!node1 || !node2) return;
-                const x1 = node1.x, y1 = node1.y, x2 = node2.x, y2 = node2.y;
-                const deltaX = (x2 - x1) * (dom.screen.clientWidth / 100);
-                const deltaY = (y2 - y1) * ((dom.screen.clientHeight - 48) / 100);
-                const distance = Math.hypot(deltaX, deltaY);
-                const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-                
-                mapContainer.appendChild(createElement('div', {
-                    className: 'map-line',
-                    style: { left: `${x1}%`, top: `${y1}%`, width: `${distance}px`, transform: `rotate(${angle}deg)` }
-                }));
-            });
+            if (gameState.currentMapId !== 'nation') {
+                mapData.connections.forEach(conn => {
+                    const node1 = mapData.nodes[conn[0]];
+                    const node2 = mapData.nodes[conn[1]];
+                    if (!node1 || !node2) return;
+                    const x1 = node1.x, y1 = node1.y, x2 = node2.x, y2 = node2.y;
+                    const deltaX = (x2 - x1) * (dom.screen.clientWidth / 100);
+                    const deltaY = (y2 - y1) * ((dom.screen.clientHeight - 48) / 100);
+                    const distance = Math.hypot(deltaX, deltaY);
+                    const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+
+                    mapContainer.appendChild(createElement('div', {
+                        className: 'map-line',
+                        style: { left: `${x1}%`, top: `${y1}%`, width: `${distance}px`, transform: `rotate(${angle}deg)` }
+                    }));
+                });
+            }
 
             for (const nodeId in mapData.nodes) {
                 const nodeData = mapData.nodes[nodeId];
                 if (!game.ConditionChecker.evaluate(nodeData.conditions)) continue;
-
                 let nodeClasses = 'map-node';
                 if (nodeId === gameState.currentMapNodeId) nodeClasses += ' current';
-
                 mapContainer.appendChild(createElement('div', {
                     className: nodeClasses,
                     dataset: { id: nodeId },
@@ -243,6 +242,17 @@
                     createElement('span', { textContent: nodeData.icon }),
                     createElement('div', { className: 'node-label', textContent: nodeData.name })
                 ]));
+            }
+
+            // [核心新增] 添加移动图标的DOM元素
+            const currentNode = mapData.nodes[gameState.currentMapNodeId];
+            if (currentNode) {
+                const mover = createElement('div', {
+                    id: 'player-map-mover',
+                    className: 'hidden',
+                    style: { left: `${currentNode.x}%`, top: `${currentNode.y}%` }
+                });
+                mapContainer.appendChild(mover);
             }
 
             dom.screen.append(header, mapContainer);
@@ -262,7 +272,7 @@
             const contentEl = createElement('div', { id: 'menu-content' });
             dom.screen.appendChild(createElement('h2', { textContent: title }));
             dom.screen.appendChild(contentEl);
-            
+
             if (screen === 'QUESTS') {
                 dom.screen.style.padding = '15px 15px 10px 15px';
                 contentEl.style.height = `calc(100% - ${contentEl.previousElementSibling.offsetHeight}px)`;
@@ -285,7 +295,7 @@
             if (!game.UI.isCombatScreenInitialized) {
                 dom.screen.innerHTML = ''; // 清空
                 dom.screen.className = 'combat-screen';
-                
+
                 const enemyContainer = createElement('div', { className: 'combat-container enemy-container' });
                 const enemyPositionMap = ["e-front-c", "e-front-l", "e-front-r", "e-back-c", "e-back-l", "e-back-r"];
                 dom.enemyCards = {};
@@ -301,7 +311,7 @@
                     enemyContainer.appendChild(card);
                     dom.enemyCards[unit.combatId] = card;
                 });
-                
+
                 const actionsPanel = createElement('div', { id: 'combat-actions-panel' });
                 dom.combatActionButtons = {};
                 const actions = [{ id: 'Attack', label: '攻击' }, { id: 'Skill', label: '技能' }, { id: 'Defend', label: '防御' }, { id: 'Item', label: '道具' }, { id: 'Flee', label: '逃跑' }];

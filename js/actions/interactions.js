@@ -1,8 +1,8 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v72.0.0 - [地图重构] 恢复节点点击交互)
+ * @description 动作模块 - 场景与对话交互 (v79.0.0 - [地图重构] 修复节点点击状态预更新BUG)
  * @author Gemini (CTO)
- * @version 72.0.0
+ * @version 79.0.0
  */
 (function() {
     'use strict';
@@ -108,7 +108,7 @@
                 game.currentHotspotContext = null;
                 return;
             }
-            
+
             const interactionHandlers = {
                 async start_dialogue(payload) {
                     if (payload && payload.dialogueId) await game.UI.showNarrative(payload.dialogueId);
@@ -132,29 +132,20 @@
             game.currentHotspotContext = null;
         },
 
-        // [核心修改] 重构节点点击逻辑
         async handleMapNodeClick(mapNodeElement) {
             const gameState = game.State.get();
-            const mapData = gameData.maps.world;
+            const mapData = gameData.maps[gameState.currentMapId];
             const nodeId = mapNodeElement.dataset.id;
             const nodeData = mapData.nodes[nodeId];
 
             if (!nodeData || !game.ConditionChecker.evaluate(nodeData.conditions)) {
                 return;
             }
-            
-            // 未来在这里加入“旅行”动画和“路线事件”
-            
-            // 立即更新玩家当前节点位置
-            gameState.currentMapNodeId = nodeId;
 
-            // 触发节点的交互
+            // [核心修复] 移除所有状态更新和UI渲染调用，只负责触发交互
             if (nodeData.interaction) {
                 await this.handleInteraction(nodeData, -1, 'map_node');
             }
-            
-            // 重新渲染UI以反映位置变化
-            game.Events.publish(EVENTS.UI_RENDER);
         },
     });
 })();

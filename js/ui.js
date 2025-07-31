@@ -1,8 +1,8 @@
 /**
  * @file js/ui.js
- * @description UI核心模块 (v74.0.0 - [地图重构] 恢复节点点击监听)
+ * @description UI核心模块 (v80.0.0 - [动画] 新增地图移动动画控制器)
  * @author Gemini (CTO)
- * @version 74.0.0
+ * @version 80.0.0
  */
 (function() {
     'use strict';
@@ -24,7 +24,7 @@
             this.NarrativeManager.init();
             this.registerEventHandlers();
             this.registerDOMListeners();
-            
+
             return ids.every(id => dom[id] !== undefined) && this.menuRenderers;
         },
 
@@ -33,7 +33,7 @@
             game.Events.subscribe(EVENTS.UI_RENDER_BOTTOM_NAV, () => this.renderBottomNav());
             game.Events.subscribe(EVENTS.UI_LOG_MESSAGE, (data) => this.log(data.message, data.color));
             game.Events.subscribe(EVENTS.UI_SHOW_TOAST, (data) => this.showToast(data));
-            
+
             game.Events.subscribe(EVENTS.STATE_CHANGED, () => {
                 this.renderLeftPanel();
                 const gameState = game.State.get();
@@ -57,6 +57,9 @@
         registerDOMListeners() {
             document.body.addEventListener('click', (event) => {
                 const gameState = game.State.get();
+                
+                // [动画] 动画播放期间锁定所有交互
+                if (this.isAnimating) return;
 
                 if (game.narrativeContext && !game.narrativeContext.isWaitingForChoice) {
                     const narrativeUi = event.target.closest('#narrative-ui');
@@ -75,7 +78,7 @@
                     game.Actions[action](param);
                     return;
                 }
-                
+
                 if (gameState.isCombat) {
                     const targetCard = event.target.closest('.combatant-card.enemy');
                     if (targetCard) game.Actions.setFocusTarget(targetCard.id);
@@ -98,7 +101,6 @@
                         }
                     }
                 } else if (gameState.gameState === 'MAP') {
-                    // [核心修改] 恢復為只監聽節點點擊
                     const mapNode = event.target.closest('.map-node');
                     if (mapNode) {
                         game.Actions.handleMapNodeClick(mapNode);
@@ -198,8 +200,8 @@
                     <div class="primary-stats-container" id="left-panel-stats"></div>
                     <div class="effects-container" id="left-panel-effects"></div> `;
                 const idsToCache = [
-                    'left-panel-avatar', 'left-panel-player-name', 'left-panel-gold', 
-                    'left-panel-date', 'left-panel-time', 
+                    'left-panel-avatar', 'left-panel-player-name', 'left-panel-gold',
+                    'left-panel-date', 'left-panel-time',
                     'left-panel-hp-bar', 'left-panel-hp-fill', 'left-panel-hp-text',
                     'left-panel-mp-bar', 'left-panel-mp-fill', 'left-panel-mp-text',
                     'left-panel-stats', 'left-panel-effects'
@@ -222,7 +224,7 @@
             dom['left-panel-mp-fill'].style.width = (maxMp > 0 ? (mp / maxMp) * 100 : 0) + '%';
             dom['left-panel-mp-text'].innerHTML = `<span>${gameData.icons.energy}</span> ${Math.ceil(mp)} / ${maxMp}`;
             const statsContainer = dom['left-panel-stats'];
-            statsContainer.innerHTML = ''; 
+            statsContainer.innerHTML = '';
             for (const key in gameData.statNames) {
                 const statName = gameData.statNames[key];
                 const statEl = document.createElement('div');
@@ -270,12 +272,12 @@
                 });
                 this.isBottomNavInitialized = true;
             }
-            
+
             const isMenu = gameState.gameState === "MENU";
             const currentMenu = gameState.menu?.current;
             const isExploring = gameState.gameState === 'EXPLORE';
             const isMapping = gameState.gameState === 'MAP';
-            const isGloballyDisabled = gameState.isCombat || gameState.gameState === 'SEQUENCE' || !!game.narrativeContext || this.ModalManager.stack.length > 0;
+            const isGloballyDisabled = this.isAnimating || gameState.isCombat || gameState.gameState === 'SEQUENCE' || !!game.narrativeContext || this.ModalManager.stack.length > 0;
 
             dom.navButtons.forEach((buttonEl, index) => {
                 const btnData = buttonsData[index];
@@ -295,7 +297,7 @@
                     isActive = isMenu && currentMenu === btnData.id;
                     actionFn = () => game.Actions.setUIMode('MENU', { screen: btnData.id });
                 }
-                
+
                 buttonEl.className = `nav-button ${isActive ? 'active' : ''}`;
                 buttonEl.onclick = actionFn;
 
@@ -312,8 +314,63 @@
             });
         },
 
-        getAvatarHtml(unit) { const id = unit ? (unit.id || 'unknown') : 'unknown'; const name = unit ? (unit.name || '未知单位') : '未知单位'; const imagePath = `images/${id}.png`; return `<img src="${imagePath}" alt="${name}" class="avatar-image" onerror="this.onerror=null; this.src='${game.DEFAULT_AVATAR_FALLBACK_IMAGE}';">`; },
+        // [核心新增] 地图移动动画控制器
+        async movePlayerOnMap(startNodeId, endNodeId, onComplete) {
+            const gameState = game.State.get();
+            const mapData = gameData.maps[gameState.currentMapId];
+            const mover = document.getElementById('player-map-mover');
+            if (!mover || !mapData) {
+                if (onComplete) onComplete();
+                return;
+            }
 
+            const path = game.Utils.findShortestPath(gameState.currentMapId, startNodeId, endNodeId);
+            if (!path || path.length < 2) {
+                if (onComplete) onComplete();
+                return;
+            }
+
+            this.isAnimating = true;
+            this.renderBottomNav(); // 禁用底部按钮
+
+            mover.classList.remove('hidden');
+
+            for (let i = 0; i < path.length - 1; i++) {
+                const fromNodeId = path[i];
+                const toNodeId = path[i + 1];
+                const fromNode = mapData.nodes[fromNodeId];
+                const toNode = mapData.nodes[toNodeId];
+
+                // 设置起点
+                mover.style.transition = 'none';
+                mover.style.left = `${fromNode.x}%`;
+                mover.style.top = `${fromNode.y}%`;
+
+                // 强制浏览器重绘以应用起点
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+                // 计算动画时长 (可基于距离)
+                const distance = Math.hypot(toNode.x - fromNode.x, toNode.y - fromNode.y);
+                const duration = Math.max(0.2, distance / 20) + 's';
+
+                // 开始动画
+                mover.style.transition = `left ${duration} linear, top ${duration} linear`;
+                mover.style.left = `${toNode.x}%`;
+                mover.style.top = `${toNode.y}%`;
+
+                // 等待动画结束
+                await new Promise(resolve => setTimeout(resolve, parseFloat(duration) * 1000));
+            }
+
+            mover.classList.add('hidden');
+            this.isAnimating = false;
+            this.renderBottomNav(); // 恢复按钮
+
+            if (onComplete) onComplete();
+        },
+
+
+        getAvatarHtml(unit) { const id = unit ? (unit.id || 'unknown') : 'unknown'; const name = unit ? (unit.name || '未知单位') : '未知单位'; const imagePath = `images/${id}.png`; return `<img src="${imagePath}" alt="${name}" class="avatar-image" onerror="this.onerror=null; this.src='${game.DEFAULT_AVATAR_FALLBACK_IMAGE}';">`; },
         typewriter(element, text, callback) {
             clearTimeout(this.typewriterTimeout);
             let i = 0;
@@ -331,14 +388,12 @@
             };
             type();
         },
-
         updateSceneBackground(imageUrl) {
             const mapArea = game.dom.screen.querySelector('.map-area');
             if(mapArea) {
                 mapArea.style.backgroundImage = `url('${imageUrl}')`;
             }
         },
-        
         showNarrative(dialogueId) { return this.NarrativeManager.show(dialogueId); },
         showConfirmation(payload) {
              const options = payload.options || [ { text: '取消', value: false, class: 'secondary-action'}, { text: '确认', value: true } ];
@@ -350,7 +405,6 @@
         showMessage(text) { return this.ModalManager.push({ type: 'custom', payload: { title: gameData.systemMessages.systemConfirm.title, html: `<p>${text}</p>` } }); },
         showJobBoard(payload) { return this.ModalManager.push({ type: 'job_board', payload }); },
         showJobDetails(jobId) { return this.ModalManager.push({ type: 'job_details', payload: { jobId } }); },
-        
         showItemDetails(inventoryIndex, payloadOverrides = {}) {
             const item = game.State.get().inventory[inventoryIndex];
             if (!item) return;
@@ -358,7 +412,6 @@
             const finalPayload = { ...basePayload, ...payloadOverrides };
             return this.ModalManager.push({ type: 'item_details', payload: finalPayload });
         },
-
         showEquipmentSelection(slotId) {
             return this.ModalManager.push({ type: 'equipment_selection', payload: { slotId } });
         },

@@ -1,6 +1,6 @@
 /**
  * @file screens.css
- * @description 游戏样式表 - 主屏幕模块 (v3.3.0 - [地图重构] 移除玩家图标样式)
+ * @description 游戏样式表 - 主屏幕模块 (v80.0.0 - [动画] 新增移动图标样式)
  */
 
 /* --- 探索屏幕 (Explore Screen) --- */
@@ -485,7 +485,6 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
 .quest-details-content ul { list-style: none; padding: 0; margin: 0; }
 .quest-details-content li { padding: 4px 0; }
 .save-slot-list li { background-color: var(--bg-color); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid var(--secondary-color); }
-
 #screen.combat-screen {
     display: flex;
     flex-direction: column;
@@ -714,6 +713,19 @@ input[type=range].quantity-slider::-moz-range-thumb { width: 20px; height: 20px;
     background: rgba(255,255,255,0.6);
     border-radius: 4px;
     padding: 1px 0;
+}
+/* [核心新增] 玩家移动图标样式 */
+#player-map-mover {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: var(--success-color);
+    border: 2px solid white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    box-shadow: 0 0 8px var(--success-color);
+    pointer-events: none; /* 非常重要，防止它拦截点击 */
 }
 .title-screen {
     display: flex;

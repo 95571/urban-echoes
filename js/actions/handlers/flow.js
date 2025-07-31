@@ -1,8 +1,8 @@
 /**
  * @file js/actions/handlers/flow.js
- * @description 动作处理器 - 流程控制相关 (v68.2.0 - [BUG修复] 修正口袋空間進入邏輯)
+ * @description 动作处理器 - 流程控制相关 (v80.0.0 - [动画] 集成地图移动动画)
  * @author Gemini (CTO)
- * @version 68.2.0
+ * @version 80.0.0
  */
 (function() {
     'use strict';
@@ -10,7 +10,7 @@
     const gameData = window.gameData;
 
     if (!game.Actions.actionHandlers) game.Actions.actionHandlers = {};
-    
+
     const namedActions = {
         fullHeal() {
             const state = game.State.get();
@@ -22,51 +22,65 @@
     };
 
     Object.assign(game.Actions.actionHandlers, {
-        start_dialogue(payload) { 
-            return game.UI.showNarrative(payload.dialogueId); 
+        start_dialogue(payload) {
+            return game.UI.showNarrative(payload.dialogueId);
         },
 
-        enter_location(payload) {
+        // [核心改造] enter_location 现在会触发移动动画
+        async enter_location(payload) {
             const gameState = game.State.get();
-            gameState.currentLocationId = payload.locationId;
-            gameState.hotspotPageIndex = 0;
-            game.State.setUIMode('EXPLORE');
-            const locationName = gameData.locations[payload.locationId]?.name || '未知地点';
-            this.log({ text: game.Utils.formatMessage('enterLocation', { locationName: locationName }) });
+            const startNodeId = gameState.currentMapNodeId;
+            const endNodeId = payload.nodeId;
+            
+            const doEnterLocation = () => {
+                gameState.currentLocationId = payload.locationId;
+                if (payload.nodeId) {
+                    gameState.currentMapNodeId = payload.nodeId;
+                }
+                gameState.hotspotPageIndex = 0;
+                game.State.setUIMode('EXPLORE');
+                const locationName = gameData.locations[payload.locationId]?.name || '未知地点';
+                this.log({ text: game.Utils.formatMessage('enterLocation', { locationName: locationName }) });
+            };
+
+            // 如果是在地图上移动 (有起点和终点), 则播放动画
+            if (gameState.gameState === 'MAP' && endNodeId && startNodeId !== endNodeId) {
+                await game.UI.movePlayerOnMap(startNodeId, endNodeId, doEnterLocation);
+            } else {
+                // 否则 (例如从场景到场景), 立即进入
+                doEnterLocation();
+            }
         },
 
-        // [核心修复] 重构进入逻辑以处理所有游戏状态
+        change_map(payload) {
+            const state = game.State.get();
+            if (payload.mapId) {
+                state.currentMapId = payload.mapId;
+            }
+            if (payload.nodeId) {
+                state.currentMapNodeId = payload.nodeId;
+            }
+            game.State.setUIMode('MAP');
+        },
+
         enter_pocket_dimension({ locationId }) {
             const state = game.State.get();
             if (!locationId) return;
-
             let returnState = null;
             let currentState = state.gameState;
 
-            // 如果当前在菜单中，则追溯到进入菜单前的状态
             if (currentState === 'MENU') {
                 currentState = state.previousGameState;
             }
-
-            // 根据最终的状态记录返回点
             if (currentState === 'EXPLORE') {
-                returnState = {
-                    fromState: 'EXPLORE',
-                    locationId: state.currentLocationId
-                };
+                returnState = { fromState: 'EXPLORE', locationId: state.currentLocationId };
             } else if (currentState === 'MAP') {
-                returnState = {
-                    fromState: 'MAP',
-                    position: { ...state.mapPosition }
-                };
+                returnState = { fromState: 'MAP', mapId: state.currentMapId, nodeId: state.currentMapNodeId };
             }
-            
             state.pocketDimensionReturnState = returnState;
-
-            // 传送玩家
             state.currentLocationId = locationId;
             state.hotspotPageIndex = 0;
-            game.State.setUIMode('EXPLORE'); // 口袋空间总是探索模式
+            game.State.setUIMode('EXPLORE');
             const locationName = gameData.locations[locationId]?.name || '未知地点';
             this.log({ text: `你进入了一个特殊的空间：${locationName}`, color: 'var(--log-color-primary)' });
         },
@@ -83,13 +97,12 @@
                 state.currentLocationId = returnState.locationId;
                 game.State.setUIMode('EXPLORE');
             } else if (returnState.fromState === 'MAP') {
-                // 恢复地图坐标和状态
-                state.mapPosition = { ...returnState.position };
+                state.currentMapId = returnState.mapId;
+                state.currentMapNodeId = returnState.nodeId;
                 game.State.setUIMode('MAP');
             }
-            
+
             this.log({ text: "你回到了原来的地方。", color: 'var(--log-color-primary)' });
-            
             state.pocketDimensionReturnState = null;
         },
 
