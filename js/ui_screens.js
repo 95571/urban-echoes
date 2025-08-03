@@ -1,14 +1,24 @@
 /**
  * @file js/ui_screens.js
- * @description UI模块 - 主屏幕渲染器 (v80.0.0 - [动画] 新增移动图标占位符)
+ * @description UI模块 - 主屏幕渲染器 (v82.1.0 - [BUG修复] 修正条件渲染逻辑)
  * @author Gemini (CTO)
- * @version 80.0.0
+ * @version 82.1.0
  */
 (function() {
     'use strict';
     const game = window.game;
     const gameData = window.gameData;
     const createElement = window.game.UI.createElement;
+
+    // [核心修复] 新增一个辅助函数，用于判断一个交互点当前是否可见
+    // 它会检查 spotData.interactions 数组，只要其中有一个交互的条件满足，就返回true
+    const isInteractionVisible = (spotData) => {
+        if (!spotData) return false;
+        const interactions = spotData.interactions || [];
+        // 只要有一个可执行的交互，就代表这个点是可见的
+        return interactions.some(interactionDef => game.ConditionChecker.evaluate(interactionDef.conditions));
+    };
+
 
     const screenRenderers = {
         TITLE() {
@@ -81,7 +91,6 @@
         },
 
         EXPLORE() {
-            // ... (代码无变化, 为节省篇幅已折叠)
             const dom = game.dom;
             const gameState = game.State.get();
             dom.screen.innerHTML = '';
@@ -101,10 +110,11 @@
             const sparkles = (location.discoveries || []).map((spot, index) => {
                 if (spot.isGlobal) return null;
 
-                const isActivated = game.ConditionChecker.evaluate(spot.activationConditions);
                 const isDestroyed = (gameState.variables[`discovery_destroyed_${gameState.currentLocationId}_${index}`] || 0) === 1;
-                const isDeactivated = spot.deactivationConditions && game.ConditionChecker.evaluate(spot.deactivationConditions);
-                if (!isActivated || isDeactivated || isDestroyed) return null;
+                // [核心修复] 使用新的 isInteractionVisible 辅助函数来判断是否显示
+                if (isDestroyed || !isInteractionVisible(spot)) {
+                    return null;
+                }
 
                 const anim = spot.animation || {};
                 const style = {
@@ -120,6 +130,7 @@
                     className: 'sparkle-hotspot',
                     style: style,
                     dataset: {
+                        // interaction 数据现在直接传递整个 spot 对象
                         interaction: JSON.stringify(spot).replace(/'/g, "&apos;"),
                         index: index,
                         type: 'discovery',
@@ -127,12 +138,13 @@
                     }
                 }, [createElement('div', { className: 'sparkle-core' })]);
             }).filter(Boolean);
-
+            
             const availableHotspots = (location.hotspots || [])
                 .map((spot, index) => ({ spot, index }))
                 .filter(({ spot, index }) => {
                     const isDestroyed = (gameState.variables[`hotspot_destroyed_${gameState.currentLocationId}_${index}`] || 0) === 1;
-                    return !isDestroyed && game.ConditionChecker.evaluate(spot.conditions);
+                    // [核心修复] 使用新的 isInteractionVisible 辅助函数来判断是否显示
+                    return !isDestroyed && isInteractionVisible(spot);
                 });
 
             const ITEMS_PER_PAGE = 6;
@@ -142,8 +154,10 @@
             const visibleHotspots = availableHotspots.slice(startIndex, endIndex);
 
             const hotspotCards = visibleHotspots.map(({ spot, index }) => {
-                const iconContent = spot.interaction?.payload?.imageUrl
-                    ? createElement('img', { attributes: { src: spot.interaction.payload.imageUrl, alt: spot.label } })
+                // Hotspot卡片现在可能没有单一的interaction，但我们仍需显示
+                const firstValidInteraction = spot.interactions.find(i => game.ConditionChecker.evaluate(i.conditions)) || spot.interactions[0];
+                const iconContent = firstValidInteraction?.action?.payload?.imageUrl
+                    ? createElement('img', { attributes: { src: firstValidInteraction.action.payload.imageUrl, alt: spot.label } })
                     : (spot.icon || '📍');
 
                 return createElement('div', {
@@ -231,7 +245,9 @@
 
             for (const nodeId in mapData.nodes) {
                 const nodeData = mapData.nodes[nodeId];
-                if (!game.ConditionChecker.evaluate(nodeData.conditions)) continue;
+                // [核心修复] 使用新的 isInteractionVisible 辅助函数来判断是否显示
+                if (!isInteractionVisible(nodeData)) continue;
+
                 let nodeClasses = 'map-node';
                 if (nodeId === gameState.currentMapNodeId) nodeClasses += ' current';
                 mapContainer.appendChild(createElement('div', {
@@ -244,7 +260,6 @@
                 ]));
             }
 
-            // [核心新增] 添加移动图标的DOM元素
             const currentNode = mapData.nodes[gameState.currentMapNodeId];
             if (currentNode) {
                 const mover = createElement('div', {

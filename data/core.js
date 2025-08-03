@@ -1,6 +1,8 @@
 /**
  * @file data/core.js
- * @description 游戏内容 - 核心设定 (v51.0.0 - [重构] 引入叙事UI)
+ * @description 游戏内容 - 核心设定 (v84.0.0 - [原型] 实现市内移动零成本)
+ * @author Gemini (CTO)
+ * @version 84.0.0
  */
 window.gameData.icons = { 
     str: '💪', dex: '🤸', int: '🧠', con: '❤️', lck: '🍀', 
@@ -12,7 +14,6 @@ window.gameData.icons = {
     cheat: '🛠️',
     save: '💾', load: '📂', export: '📤', import: '📥'
 };
-// [新增] 将核心属性的名称数据化，便于维护和扩展
 window.gameData.statNames = {
     str: '体魄', dex: '灵巧', int: '学识', con: '健康', lck: '机运'
 };
@@ -23,8 +24,12 @@ window.gameData.settings = {
         'bus_long_distance': 4,
         'bus_short_distance': 1
     },
-    // [新增] 叙事UI触发时，场景是否应用模糊效果
-    narrativeUiSceneBlur: false 
+    narrativeUiSceneBlur: false,
+    // [核心改造] 将标准移动成本清零，实现基地市（安全区）内的自由移动
+    STANDARD_MOVE_COST: {
+        time: 0,
+        energy: 0
+    }
 };
 window.gameData.screenTitles = {
     "TITLE": "都市回响", 
@@ -37,7 +42,6 @@ window.gameData.formulas_primary = {
     attack: 'str * 2', defense: 'con * 1', spd: '10 + dex',
 };
 window.gameData.systemMessages = {
-    // --- [重构] 为新的自定义弹窗补充标题和默认文本 ---
     achievementsContent: {
         title: "成就殿堂",
         html: "<p>此功能正在开发中，敬请期待您在杭城中的每一个高光时刻被铭记。</p>",
@@ -65,7 +69,6 @@ window.gameData.systemMessages = {
         title: "丢弃物品",
         html: "你确定要丢弃这个物品吗？"
     },
-    // --- 结束: 弹窗内容重构 ---
     errorNotFound: "错误：找不到 ${target}",
     errorRender: "渲染时发生致命错误，详情请见控制台。",
     errorStateRenderer: "未找到状态 ${gameState} 的渲染器。",

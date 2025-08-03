@@ -1,8 +1,8 @@
 /**
  * @file js/actions/interactions.js
- * @description 动作模块 - 场景与对话交互 (v79.0.0 - [地图重构] 修复节点点击状态预更新BUG)
+ * @description 动作模块 - 场景与对话交互 (v83.0.0 - [玩法] 适配成本系统)
  * @author Gemini (CTO)
- * @version 79.0.0
+ * @version 83.0.0
  */
 (function() {
     'use strict';
@@ -10,6 +10,50 @@
     const gameData = window.gameData;
 
     if (!game.Actions) game.Actions = {};
+
+    // [核心新增] 检查并处理成本的通用辅助函数
+    async function checkAndProcessCost(cost) {
+        if (!cost) return true; // 没有成本，直接通过
+
+        const gameState = game.State.get();
+        let costMessages = [];
+        let canAfford = true;
+
+        if (cost.time > 0) {
+            costMessages.push(`${cost.time}个时间段`);
+        }
+        if (cost.energy > 0) {
+            costMessages.push(`${cost.energy}点精力`);
+            if (gameState.mp < cost.energy) canAfford = false;
+        }
+        if (cost.gold > 0) {
+            costMessages.push(`${cost.gold}金`);
+            if (gameState.gold < cost.gold) canAfford = false;
+        }
+        
+        if (!canAfford) {
+            await game.UI.showMessage(`你的资源不足，无法执行此操作。`);
+            return false;
+        }
+
+        // 确认框 (如果成本存在)
+        if (costMessages.length > 0) {
+            const choice = await game.UI.showConfirmation({
+                title: '确认操作',
+                html: `<p>此操作将消耗：<br>- ${costMessages.join('<br>- ')}</p><p>要继续吗？</p>`,
+                options: [ { text: '继续', value: true }, { text: '取消', value: false, class: 'secondary-action' } ]
+            });
+            if (!choice || !choice.originalOption.value) return false;
+        }
+
+        // 扣除成本
+        if (cost.time > 0) await game.Actions.actionHandlers.advanceTime({ phases: cost.time });
+        if (cost.energy > 0) game.State.applyEffect(gameState, { mp: -cost.energy });
+        if (cost.gold > 0) game.State.applyEffect(gameState, { gold: -cost.gold });
+        
+        return true;
+    }
+
 
     Object.assign(game.Actions, {
         startSequence(sequenceId) {
@@ -98,37 +142,52 @@
                 hotspotIndex: index,
                 hotspotType: type
             };
-            if (!game.ConditionChecker.evaluate(spotData.conditions)) {
-                game.currentHotspotContext = null;
-                return;
-            }
-            const interaction = spotData.interaction;
-            if (!interaction || !interaction.type) {
-                console.error("处理交互失败：交互数据格式不正确。", spotData);
-                game.currentHotspotContext = null;
-                return;
-            }
+            
+            const interactions = spotData.interactions || [
+                { conditions: spotData.conditions, action: spotData.interaction, cost: spotData.cost }
+            ];
 
-            const interactionHandlers = {
-                async start_dialogue(payload) {
-                    if (payload && payload.dialogueId) await game.UI.showNarrative(payload.dialogueId);
-                },
-                async combat(payload) {
-                    if (payload) game.Combat.start(payload);
-                },
-                async action_block(payload) {
-                    if (payload) await game.Actions.executeActionBlock(payload);
+            for (const interactionDef of interactions) {
+                if (game.ConditionChecker.evaluate(interactionDef.conditions)) {
+                    
+                    // [核心修改] 在执行动作前，先检查成本 - 注意：地图节点的移动成本由 enter_location 内部处理，这里不重复检查
+                    if (type !== 'map_node') {
+                        const canProceed = await checkAndProcessCost(interactionDef.cost);
+                        if (!canProceed) {
+                            game.currentHotspotContext = null;
+                            return; // 成本不足或取消，则终止交互
+                        }
+                    }
+
+                    const action = interactionDef.action;
+                    if (!action || !action.type) {
+                        console.error("处理交互失败：动作数据格式不正确。", interactionDef);
+                        continue;
+                    }
+
+                    const handler = game.Actions.actionHandlers[action.type];
+                    if (handler) {
+                        await handler.call(game.Actions.actionHandlers, action.payload);
+                    } else {
+                        const legacyHandler = {
+                            async combat(payload) { if (payload) game.Combat.start(payload); },
+                            async action_block(payload) { if (payload) await game.Actions.executeActionBlock(payload); }
+                        }[action.type];
+
+                        if (legacyHandler) {
+                            await legacyHandler.call(this, action.payload);
+                        } else {
+                            const message = game.Utils.formatMessage('errorUnknownAction', { type: action.type });
+                            console.warn(message, spotData);
+                            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message, color: 'var(--error-color)'});
+                        }
+                    }
+                    
+                    game.currentHotspotContext = null;
+                    return; 
                 }
-            };
-
-            const handler = interactionHandlers[interaction.type];
-            if (handler) {
-                await handler.call(this, interaction.payload);
-            } else {
-                const message = game.Utils.formatMessage('errorUnknownAction', { type: interaction.type });
-                console.warn(message);
-                game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message, color: 'var(--error-color)'});
             }
+            
             game.currentHotspotContext = null;
         },
 
@@ -138,14 +197,9 @@
             const nodeId = mapNodeElement.dataset.id;
             const nodeData = mapData.nodes[nodeId];
 
-            if (!nodeData || !game.ConditionChecker.evaluate(nodeData.conditions)) {
-                return;
-            }
-
-            // [核心修复] 移除所有状态更新和UI渲染调用，只负责触发交互
-            if (nodeData.interaction) {
-                await this.handleInteraction(nodeData, -1, 'map_node');
-            }
+            if (!nodeData) return;
+            
+            await this.handleInteraction(nodeData, -1, 'map_node');
         },
     });
 })();

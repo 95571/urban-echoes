@@ -1,8 +1,8 @@
 /**
  * @file js/actions/handlers/flow.js
- * @description 动作处理器 - 流程控制相关 (v80.0.0 - [动画] 集成地图移动动画)
+ * @description 动作处理器 - 流程控制相关 (v84.3.0 - [优化] 统一入口确认对话框)
  * @author Gemini (CTO)
- * @version 80.0.0
+ * @version 84.3.0
  */
 (function() {
     'use strict';
@@ -26,29 +26,91 @@
             return game.UI.showNarrative(payload.dialogueId);
         },
 
-        // [核心改造] enter_location 现在会触发移动动画
+        async confirm_travel(payload) {
+            const { destinationName, enterAction } = payload;
+            const choice = await game.UI.showConfirmation({
+                title: '旅行提示',
+                html: `<p>你确定要前往【${destinationName}】吗？</p>`,
+                options: [ { text: '前往', value: true }, { text: '取消', value: false, class: 'secondary-action' } ]
+            });
+            if (choice && choice.originalOption.value) {
+                await game.Actions.executeActionBlock([{ action: enterAction }]);
+            } else {
+                game.Events.publish(EVENTS.UI_RENDER_BOTTOM_NAV);
+            }
+        },
+        
         async enter_location(payload) {
             const gameState = game.State.get();
-            const startNodeId = gameState.currentMapNodeId;
-            const endNodeId = payload.nodeId;
             
-            const doEnterLocation = () => {
+            const doEnterLocation = (isAnimated = false) => {
                 gameState.currentLocationId = payload.locationId;
-                if (payload.nodeId) {
-                    gameState.currentMapNodeId = payload.nodeId;
-                }
+                if (payload.nodeId) gameState.currentMapNodeId = payload.nodeId;
                 gameState.hotspotPageIndex = 0;
                 game.State.setUIMode('EXPLORE');
-                const locationName = gameData.locations[payload.locationId]?.name || '未知地点';
-                this.log({ text: game.Utils.formatMessage('enterLocation', { locationName: locationName }) });
+                if (!isAnimated) { 
+                    const locationName = gameData.locations[payload.locationId]?.name || '未知地点';
+                    this.log({ text: game.Utils.formatMessage('enterLocation', { locationName: locationName }) });
+                }
             };
 
-            // 如果是在地图上移动 (有起点和终点), 则播放动画
-            if (gameState.gameState === 'MAP' && endNodeId && startNodeId !== endNodeId) {
-                await game.UI.movePlayerOnMap(startNodeId, endNodeId, doEnterLocation);
+            if (gameState.gameState === 'MAP' && payload.nodeId) {
+                const startNodeId = gameState.currentMapNodeId;
+                const endNodeId = payload.nodeId;
+                const destinationName = gameData.maps[gameState.currentMapId].nodes[endNodeId].name;
+
+                if (startNodeId === endNodeId) {
+                    doEnterLocation(false);
+                    return;
+                }
+
+                const path = game.Utils.findShortestPath(gameState.currentMapId, startNodeId, endNodeId);
+                if (!path || path.length < 2) {
+                    console.error(`无法找到从 ${startNodeId} 到 ${endNodeId} 的路径。`);
+                    return;
+                }
+
+                const moveCost = gameData.settings.STANDARD_MOVE_COST;
+                const steps = path.length - 1;
+                const totalCost = {
+                    time: (moveCost.time || 0) * steps,
+                    energy: (moveCost.energy || 0) * steps
+                };
+
+                if (gameState.mp < totalCost.energy) {
+                    await game.UI.showMessage("你的精力不足，无法进行移动。");
+                    return;
+                }
+                
+                let costHtml = "";
+                const costDetails = [];
+                if (totalCost.time > 0) costDetails.push(`${totalCost.time} 个时间段`);
+                if (totalCost.energy > 0) costDetails.push(`${totalCost.energy} 点精力`);
+                
+                if(costDetails.length > 0) {
+                   costHtml = `<p style="font-size:0.9em; color:var(--text-muted-color);">此次移动将消耗：<br>- ${costDetails.join('<br>- ')}</p>`;
+                }
+
+                // [核心修改] 优先使用payload中传入的自定义确认文本
+                const confirmationHtml = payload.confirmationText 
+                    ? `<p>${payload.confirmationText}</p>`
+                    : `<p>你确定要前往【${destinationName}】吗？</p>`;
+
+                const choice = await game.UI.showConfirmation({
+                    title: payload.confirmationTitle || '确认移动',
+                    html: `${confirmationHtml}${costHtml}`,
+                    options: [ { text: '确定', value: true }, { text: '取消', value: false, class: 'secondary-action' } ]
+                });
+
+                if (choice && choice.originalOption.value) {
+                    if (totalCost.time > 0) await this.advanceTime({ phases: totalCost.time });
+                    if (totalCost.energy > 0) game.State.applyEffect(gameState, { mp: -totalCost.energy });
+
+                    await game.UI.movePlayerOnMap(startNodeId, endNodeId, () => doEnterLocation(true));
+                }
+
             } else {
-                // 否则 (例如从场景到场景), 立即进入
-                doEnterLocation();
+                doEnterLocation(false);
             }
         },
 

@@ -1,8 +1,8 @@
 /**
  * @file js/ui_narrative.js
- * @description UI模块 - 叙事UI管理器 (v63.0.0 - [重构] 从ui_modals.js拆分)
+ * @description UI模块 - 叙事UI管理器 (v83.0.0 - [玩法] 为对话选项增加成本系统)
  * @author Gemini (CTO)
- * @version 63.0.0
+ * @version 83.0.0
  */
 (function() {
     'use strict';
@@ -10,10 +10,52 @@
     const gameData = window.gameData;
     const createElement = window.game.UI.createElement;
 
+    // [核心新增] 检查并处理成本的辅助函数
+    async function checkAndProcessCost(cost) {
+        if (!cost) return true; // 没有成本，直接通过
+
+        const gameState = game.State.get();
+        const costMessages = [];
+        let canAfford = true;
+
+        if (cost.time > 0) {
+            costMessages.push(`${cost.time}个时间段`);
+            // 时间成本暂时不作为能否执行的前置条件
+        }
+        if (cost.energy > 0) {
+            costMessages.push(`${cost.energy}点精力`);
+            if (gameState.mp < cost.energy) {
+                canAfford = false;
+            }
+        }
+        if (cost.gold > 0) {
+            costMessages.push(`${cost.gold}金`);
+            if (gameState.gold < cost.gold) {
+                canAfford = false;
+            }
+        }
+        
+        if (!canAfford) {
+            await game.UI.showMessage(`你的资源不足，无法选择此项。`);
+            return false;
+        }
+
+        // 扣除成本
+        if (cost.time > 0) await game.Actions.actionHandlers.advanceTime({ phases: cost.time });
+        if (cost.energy > 0) game.State.applyEffect(gameState, { mp: -cost.energy });
+        if (cost.gold > 0) game.State.applyEffect(gameState, { gold: -cost.gold });
+
+        if (costMessages.length > 0) {
+            game.Events.publish(EVENTS.UI_LOG_MESSAGE, { message: `你消耗了 ${costMessages.join('，')}。` });
+        }
+
+        return true;
+    }
+
+
     const NarrativeManager = {
         init() {
             const dom = game.dom;
-            // [修复] 由于DOM结构在逻辑上被移动，重新定义查找范围
             const narrativeUI = dom["narrative-ui"];
             if (!narrativeUI) return;
             narrativeUI.innerHTML = `<div id="narrative-options"></div><div class="narrative-wrapper"><div id="narrative-avatar"></div><div id="narrative-box"><div id="narrative-name"></div><div id="narrative-text"></div><div id="narrative-continue-indicator" class="hidden">▼</div></div></div>`;
@@ -136,9 +178,22 @@
                 optionsContainer.appendChild(btn);
             });
         },
+        
+        // [核心升级] handleChoice 现在会检查并处理成本
         async handleChoice(chosenOption) {
             const ctx = game.narrativeContext;
             if (!ctx) return;
+
+            // 在执行任何动作前，先检查并处理成本
+            const canProceed = await checkAndProcessCost(chosenOption.cost);
+            if (!canProceed) {
+                // 如果成本不足，可以选择重新显示选项或直接关闭对话
+                // 这里我们选择重新显示选项，给玩家再次选择的机会
+                // this.showOptions(); 
+                // [修正] 如果成本不足，应该直接返回，让玩家看到选项，而不是重新渲染
+                return;
+            }
+
             game.dom["narrative-options"].innerHTML = '';
             if (chosenOption.actionBlock) {
                 await game.Actions.executeActionBlock(chosenOption.actionBlock);
